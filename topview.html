@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0820">
+<title>Galaxy Burger 🍔 — Top View</title>
+<style>
+  :root{
+    --bg1:#0b0820; --bg2:#1a1040; --panel:rgba(255,255,255,.06);
+    --line:rgba(139,92,246,.45); --neon:#8b5cf6; --cyan:#22d3ee;
+    --gold:#fbbf24; --red:#f43f5e; --green:#34d399;
+    --u:1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+  html,body{height:100%;}
+  body{
+    margin:0; overflow:hidden; position:fixed; inset:0;
+    background:radial-gradient(120% 90% at 50% 0%, var(--bg2) 0%, var(--bg1) 60%, #060414 100%);
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    color:#eee; touch-action:none;
+  }
+  #stars{position:fixed; inset:0; pointer-events:none; z-index:0;}
+  .star{position:absolute; background:#fff; border-radius:50%; opacity:.7; animation:tw 3s infinite alternate;}
+  @keyframes tw{from{opacity:.15}to{opacity:.85}}
+
+  #game{
+    position:relative; z-index:1; height:100dvh; max-width:900px; margin:0 auto;
+    display:flex; flex-direction:column; padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom);
+  }
+
+  /* ---------- HUD ---------- */
+  header{display:flex; gap:6px; align-items:center; padding:6px 2px 4px; flex-wrap:wrap;}
+  .pill{
+    background:var(--panel); border:1px solid var(--line); border-radius:999px;
+    padding:3px 11px; font-weight:700; font-size:13px; display:flex; gap:6px; align-items:center;
+  }
+  .pill .lbl{opacity:.6; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.5px;}
+  #muteBtn{margin-left:auto; background:var(--panel); border:1px solid var(--line); color:#eee;
+    border-radius:999px; width:34px; height:34px; font-size:15px; cursor:pointer;}
+
+  /* ---------- Customers ---------- */
+  #customers{display:flex; gap:8px; min-height:120px; padding:2px; align-items:stretch;}
+  .cust{
+    flex:1; max-width:33.5%; background:var(--panel); border:2px solid transparent; border-radius:14px;
+    padding:5px 4px 6px; display:flex; flex-direction:column; align-items:center; gap:3px;
+    cursor:pointer; transition:border-color .15s, transform .15s, box-shadow .15s; animation:beamIn .35s ease-out;
+    position:relative; overflow:hidden;
+  }
+  @keyframes beamIn{from{transform:translateY(-24px) scale(.7); opacity:0}to{transform:none; opacity:1}}
+  .cust.selected{border-color:var(--cyan); box-shadow:0 0 14px rgba(34,211,238,.35);}
+  .cust.dropHint{border-color:var(--gold); box-shadow:0 0 16px rgba(251,191,36,.6);}
+  .cust .alien{font-size:24px; line-height:1; filter:drop-shadow(0 0 6px rgba(139,92,246,.8));}
+  .cust .pbar{width:90%; height:6px; border-radius:4px; background:rgba(0,0,0,.45); overflow:hidden;}
+  .cust .pbar i{display:block; height:100%; background:var(--green); border-radius:4px; transition:background .3s;}
+  .cust .order{--u:.45; display:flex; flex-direction:column-reverse; align-items:center; margin-top:2px;}
+  .cust.angry{animation:shake .4s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .cust .zap{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    font-size:30px; background:rgba(11,8,32,.75); border-radius:12px;}
+
+  /* ---------- Ingredient bins ---------- */
+  #bins{
+    display:grid; grid-template-columns:repeat(6,1fr); gap:5px; padding:4px 0;
+  }
+  .bin{
+    background:linear-gradient(#efe6d2,#d9cba8); border:2px solid #b9a87e; border-radius:8px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    padding:4px 2px 3px; cursor:grab; touch-action:none; min-height:58px;
+    box-shadow:inset 0 -6px 10px rgba(120,90,40,.35), 0 2px 4px rgba(0,0,0,.4);
+  }
+  .bin:active{transform:scale(.94);}
+  .bin .lbl{font-size:8px; font-weight:800; letter-spacing:.4px; color:#6b5836; text-transform:uppercase;}
+  .bin .tv{pointer-events:none;}
+
+  /* ---------- Main: grill + counter ---------- */
+  #main{flex:1; display:flex; gap:8px; padding:2px 0 8px; min-height:200px;}
+  #grillZone{
+    width:104px; flex-shrink:0; display:flex; flex-direction:column; gap:6px;
+    background:linear-gradient(#3b2a20,#241812); border:2px solid #5b4332; border-radius:14px; padding:6px;
+  }
+  #grillZone h3{margin:0; font-size:9px; letter-spacing:2px; text-align:center; color:#f97316; text-transform:uppercase;}
+  .gslot{
+    flex:1; min-height:54px; border-radius:12px; position:relative; cursor:pointer; touch-action:none;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0 4px, transparent 4px 11px),
+      linear-gradient(#1d1d20,#0f0f12);
+    border:2px solid #3f3f46; display:flex; align-items:center; justify-content:center;
+  }
+  .gslot .ring{position:absolute; width:56px; height:56px; max-width:84%; max-height:84%;
+    border:2px dashed #52525b; border-radius:50%;}
+  .gslot .tvp{display:none; z-index:1;}
+  .gslot .tag{position:absolute; bottom:1px; left:0; right:0; text-align:center; font-size:8px; font-weight:800; letter-spacing:1px; z-index:2;}
+  .gslot .prog{position:absolute; top:3px; left:6px; right:6px; height:3px; border-radius:2px; background:rgba(255,255,255,.12); z-index:2;}
+  .gslot .prog i{display:block; height:100%; width:0; border-radius:2px; background:#f97316;}
+  .gslot.ready{border-color:var(--green); box-shadow:0 0 10px rgba(52,211,153,.6);}
+  .gslot.burnt{border-color:#ef4444;}
+  .gslot.dropHint{border-color:var(--gold); box-shadow:0 0 12px rgba(251,191,36,.65); animation:pulse 1s infinite;}
+  @keyframes pulse{50%{box-shadow:0 0 4px rgba(251,191,36,.3);}}
+  #trash{
+    height:58px; border-radius:12px; border:2px dashed rgba(244,63,94,.55);
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+    background:rgba(244,63,94,.08); flex-shrink:0;
+  }
+  #trash.dropHint{border-color:var(--red); box-shadow:0 0 14px rgba(244,63,94,.6); background:rgba(244,63,94,.18);}
+
+  #counter{
+    flex:1; position:relative; border-radius:16px; overflow:hidden;
+    background:
+      radial-gradient(120% 100% at 50% 20%, rgba(255,255,255,.14) 0%, transparent 55%),
+      linear-gradient(#dcae67,#c2924e);
+    border:3px solid #8a6532;
+    box-shadow:inset 0 0 40px rgba(120,80,30,.45), 0 4px 18px rgba(0,0,0,.45);
+  }
+  #counter.dropHint{box-shadow:inset 0 0 0 3px rgba(34,211,238,.6), inset 0 0 40px rgba(120,80,30,.45);}
+  #counterHint{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:rgba(90,60,20,.5); font-weight:800; font-size:13px; letter-spacing:1px; text-align:center;
+    pointer-events:none; padding:0 30px;
+  }
+  #ticket{
+    position:absolute; top:6px; right:6px; z-index:5; pointer-events:none;
+    display:none; flex-direction:column; align-items:center; gap:3px;
+    background:rgba(11,8,32,.78); border:1.5px dashed var(--line); border-radius:12px;
+    padding:7px 10px; min-width:96px;
+  }
+  #ticket .tlbl{font-size:8px; letter-spacing:2.5px; color:#a78bfa; font-weight:800;}
+  #ticketAlien{font-size:18px; line-height:1;}
+  #ticketStack{--u:.55; display:flex; flex-direction:column-reverse; align-items:center;}
+
+  /* ---------- Counter items (top view) ---------- */
+  .citem{
+    position:absolute; transform:translate(-50%,-50%); touch-action:none; cursor:grab; z-index:2;
+    filter:drop-shadow(0 4px 4px rgba(60,35,5,.45));
+  }
+  .citem.dragging{opacity:.25;}
+  .citem .badge{
+    position:absolute; left:50%; top:100%; transform:translate(-50%,-2px);
+    --u:.38; display:flex; flex-direction:column-reverse; align-items:center;
+    background:rgba(11,8,32,.72); border:1px solid var(--line);
+    border-radius:8px; padding:3px 6px; pointer-events:none;
+  }
+
+  /* ---------- Top-view sprites ---------- */
+  .tv{width:56px; height:56px; border-radius:50%; position:relative; pointer-events:none;}
+  .tv.sm{width:38px; height:38px;}
+  .tv-bun_bottom{background:radial-gradient(circle at 42% 38%, #f3c07e 0 45%, #e0a253 60%, #c2853c 100%);}
+  .tv-bun_top{background:
+    radial-gradient(circle at 30% 32%, #fde68a 0 7%, transparent 8%),
+    radial-gradient(circle at 58% 22%, #fde68a 0 6%, transparent 7%),
+    radial-gradient(circle at 72% 48%, #fde68a 0 7%, transparent 8%),
+    radial-gradient(circle at 40% 60%, #fde68a 0 6%, transparent 7%),
+    radial-gradient(circle at 60% 72%, #fde68a 0 6%, transparent 7%),
+    radial-gradient(circle at 45% 42%, #f6c887 0 55%, #e0a253 75%, #b97c36 100%);}
+  .tv-patty_raw{background:
+    radial-gradient(circle at 35% 35%, rgba(255,255,255,.25) 0 12%, transparent 13%),
+    radial-gradient(circle at 60% 60%, rgba(160,60,70,.5) 0 8%, transparent 9%),
+    radial-gradient(circle at 50% 50%, #ef9aa2 0 70%, #d06b75 100%);}
+  .tv-patty{background:
+    repeating-linear-gradient(45deg, rgba(0,0,0,.32) 0 5px, transparent 5px 13px),
+    radial-gradient(circle at 45% 40%, #7a4a2b 0 65%, #54311d 100%);}
+  .tv-patty.burnt{background:
+    repeating-linear-gradient(45deg, rgba(0,0,0,.5) 0 5px, transparent 5px 13px),
+    radial-gradient(circle at 45% 40%, #2c2420 0 65%, #17120f 100%);}
+  .tv-cheese{border-radius:8px; transform:rotate(8deg);
+    background:linear-gradient(135deg,#ffd75e,#f0b429);}
+  .tv-lettuce{border-radius:46% 54% 52% 48%/52% 46% 54% 48%;
+    background:
+      radial-gradient(circle at 25% 30%, #9ae87a 0 18%, transparent 19%),
+      radial-gradient(circle at 68% 28%, #8fe06a 0 16%, transparent 17%),
+      radial-gradient(circle at 30% 70%, #8fe06a 0 17%, transparent 18%),
+      radial-gradient(circle at 70% 68%, #9ae87a 0 15%, transparent 16%),
+      radial-gradient(circle at 50% 50%, #7ed957 0 70%, #58b53a 100%);}
+  .tv-tomato{background:
+    radial-gradient(circle at 38% 32%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 62% 36%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 35% 62%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 64% 64%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 50% 50%, #ff8a80 0 32%, #e8453c 45%, #c62e26 100%);}
+  .tv-onion{background:repeating-radial-gradient(circle at 50% 50%, #f3e8fa 0 11%, #cdb0e3 11% 18%);}
+  .tv-pickle{background:
+    radial-gradient(circle at 50% 50%, #8cc63f 0 28%, #5a9e3d 45%, #3f7a28 100%);
+    box-shadow:inset 0 0 0 3px rgba(40,80,20,.4);}
+  .tv-sauce svg{position:absolute; inset:8%; width:84%; height:84%;}
+  .tvWrap{position:relative;}
+  .tvOverlay{position:absolute; inset:6%; pointer-events:none;}
+  .tvOverlay svg{width:100%; height:100%; overflow:visible;}
+  .tvStack{position:relative; width:64px; height:64px; pointer-events:none;}
+  .tvAbs{position:absolute; inset:auto; left:50%; top:50%;}
+
+  /* bottle sprite for sauce bins */
+  .bottle{width:26px; height:44px; pointer-events:none;}
+
+  /* squirt fx on counter */
+  .squirtFx{position:absolute; z-index:8; pointer-events:none; transform:translate(-50%,-120%) rotate(135deg);
+    animation:squeeze .6s ease-out forwards;}
+  @keyframes squeeze{
+    0%{opacity:0; transform:translate(-50%,-120%) rotate(125deg) scale(.6);}
+    30%{opacity:1; transform:translate(-50%,-120%) rotate(140deg) scale(1.05);}
+    100%{opacity:0; transform:translate(-50%,-120%) rotate(135deg) scale(1);}
+  }
+  .spreadFx{animation:spreadPulse .5s ease-out;}
+  @keyframes spreadPulse{0%{transform:translate(-50%,-50%) scale(.6)}60%{transform:translate(-50%,-50%) scale(1.15)}100%{transform:translate(-50%,-50%) scale(1)}}
+
+  /* ---------- Drag ghost ---------- */
+  #ghost{position:fixed; z-index:60; pointer-events:none; display:none; transform:translate(-50%,-55%);
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,.6));}
+
+  /* ---------- Toast ---------- */
+  #toast{
+    position:fixed; top:12%; left:50%; transform:translateX(-50%); z-index:30;
+    background:rgba(11,8,32,.92); border:1px solid var(--line); border-radius:999px;
+    padding:7px 16px; font-weight:700; font-size:14px; white-space:nowrap;
+    opacity:0; transition:opacity .2s; pointer-events:none;
+  }
+
+  /* ---------- Overlay ---------- */
+  #overlay{
+    position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center;
+    background:rgba(6,4,20,.86); backdrop-filter:blur(6px); padding:20px;
+  }
+  #overlay.hidden{display:none;}
+  .card{
+    max-width:440px; width:100%; text-align:center; background:rgba(26,16,64,.85);
+    border:1px solid var(--line); border-radius:24px; padding:24px 22px;
+    box-shadow:0 0 60px rgba(139,92,246,.25); max-height:92dvh; overflow-y:auto;
+  }
+  .card h1{margin:0 0 4px; font-size:28px;
+    background:linear-gradient(90deg,#22d3ee,#8b5cf6,#f472b6); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .card h2{margin:0 0 12px; font-size:22px;}
+  .card p{font-size:14px; line-height:1.55; color:#cfc8ee; margin:10px 0;}
+  .card .how{text-align:left; font-size:13px; margin:12px auto; max-width:350px;}
+  .card .how div{margin:7px 0; display:flex; gap:8px; align-items:flex-start;}
+  .card a{color:var(--cyan); font-weight:700;}
+  .bigbtn{
+    background:linear-gradient(135deg,#22d3ee,#8b5cf6); color:#fff; border:none; border-radius:999px;
+    font-size:18px; font-weight:800; padding:13px 44px; cursor:pointer; letter-spacing:.5px; margin-top:8px;
+    box-shadow:0 6px 24px rgba(139,92,246,.5);
+  }
+  .bigbtn:active{transform:scale(.95);}
+  .stat{font-size:16px; margin:6px 0;}
+  .stat b{color:var(--gold);}
+
+  /* ---------- Burger side-view layers (for order tickets / badges) ---------- */
+  .layer{position:relative; flex-shrink:0;}
+  .layer.bun_top{
+    width:calc(96px*var(--u)); height:calc(32px*var(--u));
+    border-radius:calc(48px*var(--u)) calc(48px*var(--u)) calc(8px*var(--u)) calc(8px*var(--u));
+    background:
+      radial-gradient(circle at 28% 38%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      radial-gradient(circle at 55% 25%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      radial-gradient(circle at 75% 45%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      linear-gradient(#f0a85a,#d98c3f);
+  }
+  .layer.bun_bottom{width:calc(96px*var(--u)); height:calc(18px*var(--u));
+    border-radius:calc(6px*var(--u)) calc(6px*var(--u)) calc(12px*var(--u)) calc(12px*var(--u));
+    background:linear-gradient(#e8a050,#c87f35);}
+  .layer.patty{width:calc(90px*var(--u)); height:calc(16px*var(--u)); border-radius:calc(8px*var(--u));
+    background:linear-gradient(#7a4a2b,#54311d); margin:calc(-2px*var(--u)) 0;}
+  .layer.patty_raw{width:calc(90px*var(--u)); height:calc(16px*var(--u)); border-radius:calc(8px*var(--u));
+    background:linear-gradient(#ef9aa2,#d06b75); margin:calc(-2px*var(--u)) 0;}
+  .layer.cheese{width:calc(100px*var(--u)); height:calc(10px*var(--u)); border-radius:calc(3px*var(--u));
+    background:linear-gradient(#ffd24d,#f5b91e); margin:calc(-2px*var(--u)) 0;}
+  .layer.lettuce{width:calc(102px*var(--u)); height:calc(10px*var(--u)); border-radius:calc(5px*var(--u));
+    background:linear-gradient(#7ed957,#5bbf3e); margin:calc(-2px*var(--u)) 0;}
+  .layer.tomato{width:calc(86px*var(--u)); height:calc(11px*var(--u)); border-radius:calc(6px*var(--u));
+    background:linear-gradient(#ef5350,#d3302c); margin:calc(-2px*var(--u)) 0;}
+  .layer.onion{width:calc(92px*var(--u)); height:calc(9px*var(--u)); border-radius:calc(5px*var(--u));
+    background:repeating-linear-gradient(90deg,#ead9f5 0 calc(10px*var(--u)),#cdb0e3 calc(10px*var(--u)) calc(14px*var(--u)));
+    margin:calc(-2px*var(--u)) 0;}
+  .layer.pickle{width:calc(82px*var(--u)); height:calc(9px*var(--u)); border-radius:calc(5px*var(--u));
+    background:repeating-linear-gradient(90deg,#5a9e3d 0 calc(14px*var(--u)),#447a2c calc(14px*var(--u)) calc(18px*var(--u)));
+    margin:calc(-2px*var(--u)) 0;}
+  .layer.sauceLayer{width:calc(94px*var(--u)); height:calc(13px*var(--u)); margin:calc(-4px*var(--u)) 0; z-index:1;}
+  .layer.sauceLayer svg{width:100%; height:100%; display:block; overflow:visible;}
+
+  /* ---------- Narrow screens ---------- */
+  @media (max-width:520px){
+    #customers{min-height:104px;}
+    .cust .alien{font-size:20px;}
+    .cust .order{--u:.36;}
+    .tv{width:46px; height:46px;}
+    .tv.sm{width:32px; height:32px;}
+    #grillZone{width:88px;}
+    #ticketStack{--u:.45;}
+  }
+</style>
+</head>
+<body>
+<div id="stars"></div>
+
+<div id="game">
+  <header>
+    <div class="pill"><span class="lbl">Day</span><span id="dayN">1</span></div>
+    <div class="pill">💰 <span id="coinsN">0</span></div>
+    <div class="pill" id="livesP">❤️❤️❤️</div>
+    <button id="muteBtn">🔊</button>
+  </header>
+
+  <div id="customers"></div>
+
+  <div id="bins"></div>
+
+  <div id="main">
+    <div id="grillZone">
+      <h3>🔥 Grill</h3>
+      <div class="gslot" data-i="0"><div class="ring"></div><div class="tvp tv sm"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <div class="gslot" data-i="1"><div class="ring"></div><div class="tvp tv sm"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <div class="gslot" data-i="2"><div class="ring"></div><div class="tvp tv sm"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <div id="trash">🗑️</div>
+    </div>
+    <div id="counter">
+      <div id="counterHint">DRAG INGREDIENTS HERE — STACK THEM INTO BURGERS,<br>PARK COOKED PATTIES SO THEY DON'T BURN</div>
+      <div id="ticket">
+        <span class="tlbl">ORDER</span>
+        <span id="ticketAlien"></span>
+        <div id="ticketStack"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="ghost"></div>
+<div id="toast"></div>
+
+<div id="overlay">
+  <div class="card" id="ovCard"></div>
+</div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+
+/* ================= Data ================= */
+const ING={
+  bun_bottom:{label:'Bun'}, bun_top:{label:'Top Bun'},
+  patty:{label:'Patty'}, patty_raw:{label:'Raw Patty'},
+  cheese:{label:'Cheese'}, lettuce:{label:'Lettuce'}, tomato:{label:'Tomato'},
+  onion:{label:'Onion'}, pickle:{label:'Pickle'},
+  ketchup:{label:'Ketchup'}, mustard:{label:'Mustard'}, cosmic:{label:'Cosmic'},
+};
+const SAUCES={ketchup:'#e63946', mustard:'#eab308', cosmic:'#c026d3'};
+const BINS=['patty_raw','bun_bottom','bun_top','cheese','lettuce','tomato','onion','pickle','ketchup','mustard','cosmic'];
+const MIDDLE=['patty','cheese','lettuce','tomato','onion','pickle','ketchup','mustard','cosmic'];
+const ALIENS=['👽','🤖','👾','🐙','🦑','🌚','🦠','🐸'];
+const COOK_TIME=5, READY_TIME=7;
+const MERGE_R=46;          // px: drop within this distance of an item to stack onto it
+
+/* ================= State ================= */
+const S={
+  phase:'menu', day:1, coins:0, lives:3, best:+(localStorage.getItem('gb_best')||0),
+  items:[], nextIid:1,
+  grill:[null,null,null], customers:[], selected:null,
+  nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false,
+};
+const dayTotal=()=>4+S.day;
+const maxCust=()=>S.day>=4?3:(S.day>=2?2:1);
+
+/* ================= Audio ================= */
+let AC=null;
+function beep(f,d,type='square',v=.12){
+  if(S.muted)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended')AC.resume();
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);
+    o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+const sTap=()=>beep(420,.06,'square',.07);
+const sPop=()=>beep(660,.09,'triangle',.14);
+const sSquirt=()=>{beep(300,.1,'sawtooth',.08);setTimeout(()=>beep(520,.12,'triangle',.1),70);};
+const sGood=()=>{beep(523,.12,'triangle',.15);setTimeout(()=>beep(659,.12,'triangle',.15),90);setTimeout(()=>beep(784,.2,'triangle',.15),180);};
+const sBad=()=>{beep(180,.25,'sawtooth',.12);setTimeout(()=>beep(140,.3,'sawtooth',.12),120);};
+const sBell=()=>beep(1047,.25,'sine',.15);
+
+/* ================= Stars ================= */
+(function(){
+  const wrap=$('#stars');
+  for(let i=0;i<70;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*2.2+.6;
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;animation-delay:${Math.random()*3}s;animation-duration:${2+Math.random()*3}s`;
+    wrap.appendChild(s);
+  }
+})();
+
+/* ================= Side-view layers (tickets & badges) ================= */
+const SQUIGGLE='M3 9 Q 9 1 15 9 T 27 9 T 39 9 T 51 9 T 63 9 T 75 9 T 87 9 T 97 9';
+function layerEl(type){
+  const d=document.createElement('div');
+  if(SAUCES[type]){
+    d.className='layer sauceLayer '+type;
+    d.innerHTML=`<svg viewBox="0 0 100 12" preserveAspectRatio="none"><path d="${SQUIGGLE}" fill="none" stroke="${SAUCES[type]}" stroke-width="5" stroke-linecap="round"/></svg>`;
+  }else{
+    d.className='layer '+type;
+  }
+  return d;
+}
+function renderMini(container,order){
+  container.innerHTML='';
+  order.forEach(t=>container.appendChild(layerEl(t)));
+}
+
+/* ================= Top-view sprites ================= */
+function bottleSvg(color,w=26,h=44){
+  return `<svg class="bottle" width="${w}" height="${h}" viewBox="0 0 34 48">
+    <path d="M17 0 L22 9 L12 9 Z" fill="${color}"/>
+    <rect x="7" y="9" width="20" height="37" rx="9" fill="${color}" opacity=".92"/></svg>`;
+}
+function sauceSquiggleSvg(color){
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+    <path d="M15 30 Q 35 12 50 30 T 85 35 M18 55 Q 38 40 55 56 T 84 60 M20 78 Q 40 64 56 79 T 82 80"
+      fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round"/></svg>`;
+}
+// top-view element for a single ingredient type
+function tvEl(type,small){
+  const w=document.createElement('div');
+  w.className='tvWrap';
+  if(SAUCES[type]){
+    w.innerHTML=bottleSvg(SAUCES[type],small?22:26,small?38:44);
+    return w;
+  }
+  const d=document.createElement('div');
+  d.className='tv '+(small?'sm ':'')+'tv-'+type;
+  w.appendChild(d);
+  return w;
+}
+// relative footprint of each ingredient seen from above
+const TV_SCALE={bun_bottom:.98,bun_top:.95,patty:.86,patty_raw:.86,cheese:.96,lettuce:1.06,tomato:.82,onion:.9,pickle:.74};
+// top-view element for a stack: every layer visible, lower layers peeking out
+// beneath upper ones, each lifted slightly for a stacked-burger look
+function stackTvEl(layers){
+  const wrap=document.createElement('div');
+  wrap.className='tvStack';
+  const base=56;
+  let lift=0, lastSize=base, sauceN=0;
+  layers.forEach((t,i)=>{
+    if(SAUCES[t]){
+      const o=document.createElement('div');
+      o.className='tvOverlay tvAbs';
+      const sz=lastSize*.82;
+      o.style.cssText=`width:${sz}px;height:${sz}px;z-index:${i+1};
+        transform:translate(-50%,-50%) translateY(${-lift}px) rotate(${sauceN*38}deg);`;
+      o.innerHTML=sauceSquiggleSvg(SAUCES[t]);
+      wrap.appendChild(o);
+      sauceN++;lift+=1;
+      return;
+    }
+    const d=document.createElement('div');
+    d.className='tv tv-'+t+' tvAbs';
+    const sz=base*(TV_SCALE[t]||.9);
+    lastSize=sz;
+    d.style.cssText=`width:${sz}px;height:${sz}px;z-index:${i+1};
+      transform:translate(-50%,-50%) translateY(${-lift}px)${t==='cheese'?' rotate(8deg)':''};
+      box-shadow:0 3px 3px rgba(50,25,5,.4);`;
+    wrap.appendChild(d);
+    lift+=4;
+  });
+  return wrap;
+}
+
+/* ================= Toast ================= */
+let toastT=null;
+function toast(msg,ms=1400){
+  const t=$('#toast');t.textContent=msg;t.style.opacity=1;
+  clearTimeout(toastT);toastT=setTimeout(()=>t.style.opacity=0,ms);
+}
+function lerpColor(a,b,t){
+  const pa=a.match(/\w\w/g).map(x=>parseInt(x,16)),pb=b.match(/\w\w/g).map(x=>parseInt(x,16));
+  return '#'+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+
+/* ================= Orders & customers ================= */
+function makeOrder(){
+  const base=Math.min(2+Math.floor((S.day-1)/2),6);
+  const n=Math.max(1,base-(Math.random()<.4?1:0));
+  const mid=['patty'];
+  while(mid.length<n){
+    const pick=MIDDLE[Math.floor(Math.random()*MIDDLE.length)];
+    if(pick!=='patty'||Math.random()<.25)mid.push(pick);
+  }
+  for(let i=mid.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mid[i],mid[j]]=[mid[j],mid[i]];}
+  return ['bun_bottom',...mid,'bun_top'];
+}
+function spawnCustomer(){
+  const order=makeOrder();
+  const dur=Math.max(28,(56-S.day*3))+order.length*4;  // a touch more generous: assembly is slower top-down
+  const c={
+    id:S.nextCid++,
+    alien:ALIENS[Math.floor(Math.random()*ALIENS.length)],
+    order, patience:dur, maxPatience:dur, el:null,
+  };
+  const el=document.createElement('div');
+  el.className='cust';
+  el.innerHTML=`<div class="alien">${c.alien}</div>
+    <div class="pbar"><i style="width:100%"></i></div>
+    <div class="order"></div><div class="zap"></div>`;
+  renderMini(el.querySelector('.order'),order);
+  el.addEventListener('pointerdown',()=>{selectCustomer(c.id);sTap();});
+  c.el=el;
+  $('#customers').appendChild(el);
+  S.customers.push(c);
+  S.daySpawned++;
+  if(!S.selected)selectCustomer(c.id);
+}
+function selectCustomer(id){
+  S.selected=id;
+  S.customers.forEach(c=>c.el.classList.toggle('selected',c.id===id));
+  renderTicket();
+}
+function renderTicket(){
+  const c=S.customers.find(x=>x.id===S.selected);
+  const t=$('#ticket');
+  if(!c){t.style.display='none';return;}
+  t.style.display='flex';
+  $('#ticketAlien').textContent=c.alien;
+  renderMini($('#ticketStack'),c.order);
+}
+function removeCustomer(c,emoji){
+  const z=c.el.querySelector('.zap');
+  z.textContent=emoji;z.style.display='flex';
+  c.dead=true;
+  setTimeout(()=>{c.el.remove();},650);
+  S.customers=S.customers.filter(x=>x!==c);
+  if(S.selected===c.id)selectCustomer(S.customers[0]?S.customers[0].id:null);
+  S.dayResolved++;
+  renderTicket();
+}
+
+/* ================= Counter items ================= */
+const counter=$('#counter');
+function clampPos(x,y){
+  const r=counter.getBoundingClientRect();
+  return [Math.min(Math.max(x,34),r.width-34), Math.min(Math.max(y,34),r.height-44)];
+}
+function addItem(layers,x,y,fx){
+  [x,y]=clampPos(x,y);
+  const it={id:S.nextIid++,layers,x,y,el:null};
+  const el=document.createElement('div');
+  el.className='citem';
+  el.style.left=x+'px';el.style.top=y+'px';
+  el.addEventListener('pointerdown',e=>{e.preventDefault();startDrag(e,{kind:'item',item:it});});
+  it.el=el;
+  counter.appendChild(el);
+  S.items.push(it);
+  renderItem(it,fx);
+  updateHint();
+  return it;
+}
+function renderItem(it,fx){
+  it.el.innerHTML='';
+  const tv=stackTvEl(it.layers);
+  if(fx)tv.classList.add('spreadFx');
+  it.el.appendChild(tv);
+  if(it.layers.length>1){
+    const b=document.createElement('div');
+    b.className='badge';
+    renderMini(b,it.layers);
+    it.el.appendChild(b);
+  }
+}
+function moveItem(it,x,y){
+  [x,y]=clampPos(x,y);
+  it.x=x;it.y=y;
+  it.el.style.left=x+'px';it.el.style.top=y+'px';
+}
+function removeItem(it){
+  it.el.remove();
+  S.items=S.items.filter(x=>x!==it);
+  updateHint();
+}
+function itemAt(x,y,except){
+  let best=null,bd=1e9;
+  for(const it of S.items){
+    if(it===except)continue;
+    const d=Math.hypot(it.x-x,it.y-y);
+    if(d<MERGE_R&&d<bd){bd=d;best=it;}
+  }
+  return best;
+}
+function updateHint(){
+  $('#counterHint').style.display=S.items.length?'none':'flex';
+}
+function squirtFxAt(x,y,color){
+  const fx=document.createElement('div');
+  fx.className='squirtFx';
+  fx.style.left=x+'px';fx.style.top=y+'px';
+  fx.innerHTML=bottleSvg(color,30,48);
+  counter.appendChild(fx);
+  setTimeout(()=>fx.remove(),650);
+  sSquirt();
+}
+
+/* ================= Bins ================= */
+(function buildBins(){
+  const bins=$('#bins');
+  BINS.forEach(t=>{
+    const b=document.createElement('div');
+    b.className='bin';
+    b.appendChild(tvEl(t,true));
+    const l=document.createElement('span');l.className='lbl';l.textContent=ING[t].label;
+    b.appendChild(l);
+    b.addEventListener('pointerdown',e=>{e.preventDefault();startDrag(e,{kind:'bin',type:t});});
+    bins.appendChild(b);
+  });
+})();
+
+/* ================= Drag & drop ================= */
+let drag=null;
+const ghost=$('#ghost');
+const slotEls=[...document.querySelectorAll('.gslot')];
+function startDrag(e,src){
+  if(drag||S.phase!=='play')return;
+  drag={...src,startX:e.clientX,startY:e.clientY,moved:false,pid:e.pointerId};
+  ghost.innerHTML='';
+  let g;
+  if(src.kind==='bin')g=tvEl(src.type);
+  else if(src.kind==='slot')g=tvEl('patty');
+  else g=stackTvEl(src.item.layers);
+  ghost.appendChild(g);
+  ghost.style.display='block';
+  moveGhost(e);
+  try{e.target.setPointerCapture(e.pointerId);}catch(_){}
+  if(src.kind==='item')src.item.el.classList.add('dragging');
+  // highlight targets
+  const isRaw=(src.kind==='bin'&&src.type==='patty_raw')||
+              (src.kind==='item'&&src.item.layers.length===1&&src.item.layers[0]==='patty_raw');
+  if(isRaw)slotEls.forEach((el,i)=>{if(!S.grill[i])el.classList.add('dropHint');});
+  if(src.kind==='bin'&&SAUCES[src.type]){/* sauce: highlight stacks implicitly via counter */}
+  counter.classList.add('dropHint');
+  $('#trash').classList.add('dropHint');
+  if(src.kind==='item'&&src.item.layers.length>=3)
+    S.customers.forEach(c=>c.el.classList.add('dropHint'));
+}
+function moveGhost(e){ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';}
+function clearDragUI(d){
+  ghost.style.display='none';
+  counter.classList.remove('dropHint');
+  $('#trash').classList.remove('dropHint');
+  slotEls.forEach(el=>el.classList.remove('dropHint'));
+  S.customers.forEach(c=>c.el.classList.remove('dropHint'));
+  if(d&&d.kind==='item'&&d.item.el)d.item.el.classList.remove('dragging');
+}
+function inRect(x,y,el,pad=0){
+  const r=el.getBoundingClientRect();
+  return x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;
+}
+function cancelDrag(){
+  if(!drag)return;
+  const d=drag;drag=null;
+  if(d.kind==='slot')S.grill[d.fromSlot]=d.slotState;
+  clearDragUI(d);
+}
+window.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.pid)return;
+  if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>8)drag.moved=true;
+  moveGhost(e);
+});
+window.addEventListener('pointercancel',cancelDrag);
+window.addEventListener('pointerup',e=>{
+  if(!drag||e.pointerId!==drag.pid)return;
+  const d=drag;drag=null;clearDragUI(d);
+  const x=e.clientX,y=e.clientY;
+  const restoreSlot=()=>{if(d.kind==='slot')S.grill[d.fromSlot]=d.slotState;};
+
+  if(!d.moved){ // tap behaviors
+    if(d.kind==='bin'&&SAUCES[d.type]){
+      const stacks=S.items.filter(it=>it.layers.length>=1&&!ING[it.layers[0]].sauce);
+      if(stacks.length===1){applySauce(stacks[0],d.type);return;}
+      toast(stacks.length?'🧂 Drag the sauce onto a burger!':'🧂 Build a burger first!');
+      return;
+    }
+    if(d.kind==='slot'){restoreSlot();toast('👆 Drag the patty onto the counter!');return;}
+    if(d.kind==='bin'){toast(d.type==='patty_raw'?'👆 Drag it onto the grill!':'👆 Drag it onto the counter!');return;}
+    return; // item tap: nothing
+  }
+
+  // ---- serve: drop a burger on a customer ----
+  if(d.kind==='item'&&d.item.layers.length>=3){
+    for(const c of [...S.customers]){
+      if(inRect(x,y,c.el,4)){serve(d.item,c);return;}
+    }
+  }else if(inRect(x,y,$('#customers'))&&d.kind==='item'){
+    toast('🍔 That burger looks unfinished!');return;
+  }
+
+  // ---- trash ----
+  if(inRect(x,y,$('#trash'),6)){
+    if(d.kind==='item')removeItem(d.item);
+    sBad();toast('🗑️ Tossed into space');
+    return; // slot patty already removed; bin item just vanishes
+  }
+
+  // ---- grill ----
+  const isRaw=(d.kind==='bin'&&d.type==='patty_raw')||
+              (d.kind==='item'&&d.item.layers.length===1&&d.item.layers[0]==='patty_raw');
+  if(isRaw){
+    for(let i=0;i<slotEls.length;i++){
+      if(!S.grill[i]&&inRect(x,y,slotEls[i],8)){
+        S.grill[i]={placedAt:S.time};
+        if(d.kind==='item')removeItem(d.item);
+        sTap();return;
+      }
+    }
+  }
+
+  // ---- counter ----
+  if(inRect(x,y,counter)){
+    const r=counter.getBoundingClientRect();
+    const cx=x-r.left, cy=y-r.top;
+    if(d.kind==='bin'&&SAUCES[d.type]){
+      const target=itemAt(cx,cy,null);
+      if(target)applySauce(target,d.type);
+      else toast('🧂 Squirt it onto a burger!');
+      return;
+    }
+    const except=d.kind==='item'?d.item:null;
+    const target=itemAt(cx,cy,except);
+    if(target){ // stack onto existing item
+      if(d.kind==='bin')target.layers.push(d.type);
+      else if(d.kind==='slot')target.layers.push('patty');
+      else{target.layers.push(...d.item.layers);removeItem(d.item);}
+      if(target.layers.length>12){target.layers.length=12;toast('🍔 Whoa, too tall!');}
+      sPop();renderItem(target);
+      return;
+    }
+    // free placement
+    if(d.kind==='bin')addItem([d.type],cx,cy);
+    else if(d.kind==='slot')addItem(['patty'],cx,cy);
+    else moveItem(d.item,cx,cy);
+    sPop();
+    return;
+  }
+
+  // dropped nowhere useful
+  restoreSlot();
+});
+function applySauce(target,type){
+  if(target.layers.length>=12){toast('🍔 Whoa, too tall!');return;}
+  target.layers.push(type);
+  squirtFxAt(target.x,target.y-30,SAUCES[type]);
+  renderItem(target,true);
+}
+
+/* ================= Serving ================= */
+function serve(item,c){
+  const ok=item.layers.length===c.order.length&&item.layers.every((t,i)=>t===c.order[i]);
+  if(ok){
+    const frac=Math.max(0,c.patience/c.maxPatience);
+    const tip=Math.floor(frac*6);
+    const pay=4+(c.order.length-2)*2+tip;
+    S.coins+=pay;S.dayEarned+=pay;
+    removeItem(item);
+    sGood();toast(`✨ Perfect! +💰${pay}${tip>=4?' (great tip!)':''}`);
+    removeCustomer(c,'😋');
+  }else{
+    sBad();
+    c.patience=Math.max(1,c.patience-c.maxPatience*.25);
+    c.el.classList.remove('angry');void c.el.offsetWidth;c.el.classList.add('angry');
+    toast('❌ Wrong order! Check the ticket.');
+  }
+  renderHud();
+}
+
+/* ================= Grill ================= */
+slotEls.forEach(el=>{
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    if(S.phase!=='play'||drag)return;
+    const i=+el.dataset.i, g=S.grill[i];
+    if(!g){toast('🥩 Drag a raw patty here!');return;}
+    const e2=S.time-g.placedAt;
+    if(e2<COOK_TIME){toast('⏳ Still cooking…');return;}
+    if(e2<COOK_TIME+READY_TIME){
+      const state=S.grill[i];S.grill[i]=null;
+      startDrag(e,{kind:'slot',fromSlot:i,slotState:state});
+    }else{
+      S.grill[i]=null;sBad();toast('🔥 Burnt! Trashed.');
+    }
+  });
+});
+function renderGrill(){
+  slotEls.forEach((el,i)=>{
+    const g=S.grill[i], tvp=el.querySelector('.tvp'), tag=el.querySelector('.tag'),
+          ring=el.querySelector('.ring'), prog=el.querySelector('.prog i');
+    el.classList.remove('ready','burnt');
+    if(!g){tvp.style.display='none';ring.style.display='';tag.textContent='';prog.style.width='0';return;}
+    ring.style.display='none';tvp.style.display='block';
+    tvp.className='tvp tv sm';
+    const e=S.time-g.placedAt;
+    if(e<COOK_TIME){
+      const p=e/COOK_TIME;
+      tvp.style.background=`radial-gradient(circle at 45% 40%, ${lerpColor('ef9aa2','7a4a2b',p)} 0 65%, ${lerpColor('d06b75','54311d',p)} 100%)`;
+      tag.textContent='COOKING';tag.style.color='#f97316';
+      prog.style.width=(p*100)+'%';prog.style.background='#f97316';
+    }else if(e<COOK_TIME+READY_TIME){
+      tvp.style.background='';tvp.classList.add('tv-patty');
+      el.classList.add('ready');
+      tag.textContent='READY! DRAG';tag.style.color='#34d399';
+      const left=1-(e-COOK_TIME)/READY_TIME;
+      prog.style.width=(left*100)+'%';prog.style.background='#34d399';
+    }else{
+      tvp.style.background='';tvp.classList.add('tv-patty','burnt');
+      el.classList.add('burnt');
+      tag.textContent='BURNT';tag.style.color='#ef4444';
+      prog.style.width='100%';prog.style.background='#ef4444';
+    }
+  });
+}
+
+/* ================= HUD / overlay ================= */
+function renderHud(){
+  $('#dayN').textContent=S.day;
+  $('#coinsN').textContent=S.coins;
+  $('#livesP').textContent=S.lives>0?'❤️'.repeat(S.lives):'💔';
+}
+$('#muteBtn').addEventListener('pointerdown',()=>{
+  S.muted=!S.muted;
+  $('#muteBtn').textContent=S.muted?'🔇':'🔊';
+});
+function showOverlay(html){$('#ovCard').innerHTML=html;$('#overlay').classList.remove('hidden');}
+function hideOverlay(){$('#overlay').classList.add('hidden');}
+
+function clearCounter(){
+  S.items.forEach(it=>it.el.remove());
+  S.items=[];
+  updateHint();
+}
+function showMenu(){
+  S.phase='menu';
+  showOverlay(`
+    <h1>🍔 GALAXY BURGER</h1>
+    <p>Top-View Kitchen Edition</p>
+    <div class="how">
+      <div>👽 <span>Aliens beam in with orders. Tap one to pin their <b>ORDER ticket</b>; match it <b>bottom to top</b>.</span></div>
+      <div>🥩 <span><b>Drag</b> a raw patty onto a grill burner. Grab it while it's <b style="color:#34d399">READY</b> — or park it on the counter, where it <b>never burns</b>.</span></div>
+      <div>🪵 <span>The big counter is yours: drop ingredients anywhere, slide them around, and <b>drop one on top of another to stack</b> a burger.</span></div>
+      <div>🧂 <span>Sauce bottles squirt onto a burger — drag one over (or just tap it if there's one burger out).</span></div>
+      <div>🚀 <span><b>Drag the finished burger onto the customer</b> to serve! 3 walkouts and it's game over.</span></div>
+    </div>
+    <p><a href="index.html">🍔 Prefer the classic side-view mode?</a></p>
+    ${S.best?`<p class="stat">Best run: <b>💰${S.best}</b></p>`:''}
+    <button class="bigbtn" id="playBtn">PLAY ▶</button>`);
+  $('#playBtn').addEventListener('pointerdown',startGame);
+}
+function startGame(){
+  Object.assign(S,{phase:'play',day:1,coins:0,lives:3,grill:[null,null,null],
+    customers:[],selected:null,spawnT:.8,daySpawned:0,dayResolved:0,dayEarned:0});
+  $('#customers').innerHTML='';
+  clearCounter();
+  renderTicket();renderHud();hideOverlay();sBell();
+}
+function endDay(){
+  S.phase='day';sBell();
+  showOverlay(`
+    <h2>🌟 Day ${S.day} complete!</h2>
+    <p class="stat">Earned today: <b>💰${S.dayEarned}</b></p>
+    <p class="stat">Total: <b>💰${S.coins}</b></p>
+    <p>${S.day+1>=4?'Three hungry aliens at once now — prep patties ahead and park them! 🥶':'It gets busier from here… the counter is your friend.'}</p>
+    <button class="bigbtn" id="nextBtn">DAY ${S.day+1} ▶</button>`);
+  $('#nextBtn').addEventListener('pointerdown',()=>{
+    S.day++;S.daySpawned=0;S.dayResolved=0;S.dayEarned=0;S.spawnT=1;
+    S.grill=[null,null,null];
+    clearCounter();
+    renderTicket();renderHud();hideOverlay();
+    S.phase='play';
+  });
+}
+function gameOver(){
+  S.phase='over';sBad();cancelDrag();
+  const isBest=S.coins>S.best;
+  if(isBest){S.best=S.coins;localStorage.setItem('gb_best',S.best);}
+  showOverlay(`
+    <h2>💀 GAME OVER</h2>
+    <p>Too many aliens left hangry…</p>
+    <p class="stat">Days survived: <b>${S.day}</b></p>
+    <p class="stat">Coins earned: <b>💰${S.coins}</b> ${isBest?'🏆 NEW BEST!':''}</p>
+    <p class="stat">Best: <b>💰${S.best}</b></p>
+    <button class="bigbtn" id="againBtn">PLAY AGAIN ▶</button>`);
+  $('#againBtn').addEventListener('pointerdown',startGame);
+}
+
+/* ================= Main loop ================= */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(S.phase==='play'){
+    S.time+=dt;
+    S.spawnT-=dt;
+    if(S.spawnT<=0&&S.customers.length<maxCust()&&S.daySpawned<dayTotal()){
+      spawnCustomer();
+      S.spawnT=2.5+Math.random()*4;
+    }
+    for(const c of [...S.customers]){
+      c.patience-=dt;
+      const frac=Math.max(0,c.patience/c.maxPatience);
+      const bar=c.el.querySelector('.pbar i');
+      bar.style.width=(frac*100)+'%';
+      bar.style.background=frac>.5?'var(--green)':(frac>.25?'var(--gold)':'var(--red)');
+      if(c.patience<=0){
+        S.lives--;sBad();renderHud();
+        removeCustomer(c,'💢');
+        toast('💔 A customer stormed off!');
+        if(S.lives<=0){gameOver();break;}
+      }
+    }
+    if(S.phase==='play'&&S.dayResolved>=dayTotal()&&S.customers.length===0)endDay();
+    renderGrill();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+renderHud();
+showMenu();
+
+// keep counter items inside when the window resizes / rotates
+window.addEventListener('resize',()=>{S.items.forEach(it=>moveItem(it,it.x,it.y));});
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('dblclick',e=>e.preventDefault());
+</script>
+</body>
+</html>

@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0820">
+<title>Galaxy Burger 🍔</title>
+<style>
+  :root{
+    --bg1:#0b0820; --bg2:#1a1040; --panel:rgba(255,255,255,.06);
+    --line:rgba(139,92,246,.45); --neon:#8b5cf6; --cyan:#22d3ee;
+    --gold:#fbbf24; --red:#f43f5e; --green:#34d399;
+    --u:1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+  html,body{height:100%;}
+  body{
+    margin:0; overflow:hidden; position:fixed; inset:0;
+    background:radial-gradient(120% 90% at 50% 0%, var(--bg2) 0%, var(--bg1) 60%, #060414 100%);
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    color:#eee; touch-action:none;
+  }
+  #stars{position:fixed; inset:0; pointer-events:none; z-index:0;}
+  .star{position:absolute; background:#fff; border-radius:50%; opacity:.7; animation:tw 3s infinite alternate;}
+  @keyframes tw{from{opacity:.15}to{opacity:.85}}
+
+  #game{
+    position:relative; z-index:1; height:100dvh; max-width:620px; margin:0 auto;
+    display:flex; flex-direction:column; padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom);
+  }
+
+  /* ---------- HUD ---------- */
+  header{display:flex; gap:6px; align-items:center; padding:8px 2px 6px; flex-wrap:wrap;}
+  .pill{
+    background:var(--panel); border:1px solid var(--line); border-radius:999px;
+    padding:4px 12px; font-weight:700; font-size:14px; display:flex; gap:6px; align-items:center;
+  }
+  .pill .lbl{opacity:.6; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.5px;}
+  #muteBtn{margin-left:auto; background:var(--panel); border:1px solid var(--line); color:#eee;
+    border-radius:999px; width:36px; height:36px; font-size:16px; cursor:pointer;}
+
+  /* ---------- Customers ---------- */
+  #customers{display:flex; gap:8px; min-height:166px; padding:2px; align-items:stretch;}
+  .cust{
+    flex:1; max-width:33.5%; background:var(--panel); border:2px solid transparent; border-radius:16px;
+    padding:6px 4px 8px; display:flex; flex-direction:column; align-items:center; gap:4px;
+    cursor:pointer; transition:border-color .15s, transform .15s; animation:beamIn .35s ease-out;
+    position:relative; overflow:hidden;
+  }
+  @keyframes beamIn{from{transform:translateY(-24px) scale(.7); opacity:0}to{transform:none; opacity:1}}
+  .cust.selected{border-color:var(--cyan); box-shadow:0 0 14px rgba(34,211,238,.35); transform:translateY(-2px);}
+  .cust .alien{font-size:28px; line-height:1; filter:drop-shadow(0 0 6px rgba(139,92,246,.8));}
+  .cust .pbar{width:90%; height:6px; border-radius:4px; background:rgba(0,0,0,.45); overflow:hidden;}
+  .cust .pbar i{display:block; height:100%; background:var(--green); border-radius:4px; transition:background .3s;}
+  .cust .order{--u:.55; display:flex; flex-direction:column-reverse; align-items:center; margin-top:3px;}
+  .cust.angry{animation:shake .4s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .cust .zap{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    font-size:34px; background:rgba(11,8,32,.75); border-radius:14px;}
+
+  /* ---------- Assembly ---------- */
+  #assembly{
+    flex:1; min-height:130px; display:flex; align-items:stretch; justify-content:center; gap:8px;
+    padding:6px 2px 8px; position:relative;
+  }
+  #ticket{
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    background:rgba(255,255,255,.045); border:1.5px dashed var(--line); border-radius:16px;
+    padding:10px 10px; width:128px; flex-shrink:0; align-self:center; max-height:100%;
+  }
+  #ticket .tlbl{font-size:9px; letter-spacing:2.5px; color:#a78bfa; font-weight:800;}
+  #ticketAlien{font-size:22px; line-height:1; filter:drop-shadow(0 0 6px rgba(139,92,246,.8));}
+  #ticketStack{--u:.68; display:flex; flex-direction:column-reverse; align-items:center;}
+  #plateWrap{display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    flex:1; position:relative; border-radius:18px; border:2px dashed transparent; transition:border-color .15s, background .15s;}
+  #plateWrap.dropHint{border-color:rgba(34,211,238,.7); background:rgba(34,211,238,.07);}
+  #stack{display:flex; flex-direction:column-reverse; align-items:center; max-height:calc(100% - 24px); overflow:hidden; justify-content:flex-start;}
+  #plate{width:150px; height:14px; border-radius:50%; margin-top:-4px;
+    background:linear-gradient(#cbd5e1,#64748b); box-shadow:0 4px 14px rgba(0,0,0,.5);}
+  #squirt{position:absolute; left:50%; transform:translateX(-50%); display:none; z-index:6;
+    pointer-events:none;}
+  #squirt.go{display:block; animation:squeeze .65s ease-out forwards;}
+  @keyframes squeeze{
+    0%{opacity:0; transform:translateX(-50%) rotate(125deg) scale(.6);}
+    30%{opacity:1; transform:translateX(-50%) rotate(140deg) scale(1.05);}
+    55%{transform:translateX(-50%) rotate(135deg) scale(.92,1.08);}
+    100%{opacity:0; transform:translateX(-50%) rotate(135deg) scale(1);}
+  }
+  .sideBtns{display:flex; flex-direction:column; gap:8px; justify-content:flex-end;}
+  .abtn{
+    border:none; border-radius:14px; padding:10px; font-size:20px; cursor:pointer; min-width:56px;
+    background:var(--panel); border:1px solid var(--line); color:#eee; transition:box-shadow .15s;
+  }
+  .abtn:active{transform:scale(.93);}
+  .abtn.dropHint{border-color:var(--red); box-shadow:0 0 12px rgba(244,63,94,.55);}
+  #serveBtn{
+    background:linear-gradient(135deg,#22d3ee,#8b5cf6); border:none; font-weight:800; font-size:15px;
+    color:#fff; padding:14px 10px; letter-spacing:.5px; box-shadow:0 4px 18px rgba(139,92,246,.45);
+  }
+  #serveBtn:disabled{opacity:.35; box-shadow:none;}
+
+  /* ---------- Toast ---------- */
+  #toast{
+    position:absolute; top:6px; left:50%; transform:translateX(-50%); z-index:7;
+    background:rgba(11,8,32,.92); border:1px solid var(--line); border-radius:999px;
+    padding:7px 16px; font-weight:700; font-size:14px; white-space:nowrap;
+    opacity:0; transition:opacity .2s; pointer-events:none;
+  }
+
+  /* ---------- Grill + Tray ---------- */
+  #lower{display:flex; gap:8px; padding-bottom:10px;}
+  #grill{
+    background:linear-gradient(#27272a,#111114); border:1px solid #3f3f46; border-radius:16px;
+    padding:8px; display:flex; flex-direction:column; gap:6px; width:118px; flex-shrink:0;
+  }
+  #grill h3{margin:0; font-size:10px; letter-spacing:2px; text-align:center; color:#f97316; text-transform:uppercase;}
+  .slot{
+    background:repeating-linear-gradient(90deg,#18181b 0 8px,#26262b 8px 16px);
+    border-radius:10px; height:50px; display:flex; align-items:center; justify-content:center;
+    position:relative; cursor:pointer; border:1px solid #3f3f46; touch-action:none;
+  }
+  .slot .meat{width:42px; height:24px; border-radius:12px; display:none; box-shadow:0 2px 6px rgba(0,0,0,.6);}
+  .slot .tag{position:absolute; bottom:2px; left:0; right:0; text-align:center; font-size:9px; font-weight:800; letter-spacing:1px;}
+  .slot .prog{position:absolute; top:2px; left:4px; right:4px; height:3px; border-radius:2px; background:rgba(255,255,255,.12);}
+  .slot .prog i{display:block; height:100%; width:0; border-radius:2px; background:#f97316;}
+  .slot.empty .plus{color:#52525b; font-size:20px; font-weight:300;}
+  .slot.ready{box-shadow:0 0 10px rgba(52,211,153,.6); border-color:var(--green);}
+  .slot.burnt{border-color:#ef4444;}
+  .slot.dropHint{border-color:var(--gold); box-shadow:0 0 12px rgba(251,191,36,.6); animation:pulse 1s infinite;}
+  @keyframes pulse{50%{box-shadow:0 0 4px rgba(251,191,36,.3);}}
+
+  #tray{flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:5px;}
+  .ing{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; cursor:grab;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:4px 2px;
+    color:#ddd; font-size:9px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+    touch-action:none;
+  }
+  .ing:active{transform:scale(.92); background:rgba(139,92,246,.25);}
+  .ing.sauceBtn{cursor:pointer; border-color:rgba(251,191,36,.5);}
+  .ing .mini{--u:.42; display:flex; flex-direction:column-reverse; align-items:center; pointer-events:none;}
+
+  /* ---------- Drag ghost ---------- */
+  #ghost{position:fixed; z-index:60; pointer-events:none; display:none; transform:translate(-50%,-55%);
+    filter:drop-shadow(0 6px 10px rgba(0,0,0,.6));}
+  #ghost .gwrap{--u:.9; display:flex; flex-direction:column-reverse; align-items:center;}
+
+  /* ---------- Burger layers ---------- */
+  .layer{position:relative; flex-shrink:0;}
+  .layer.bun_top{
+    width:calc(96px*var(--u)); height:calc(32px*var(--u));
+    border-radius:calc(48px*var(--u)) calc(48px*var(--u)) calc(8px*var(--u)) calc(8px*var(--u));
+    background:
+      radial-gradient(circle at 28% 38%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      radial-gradient(circle at 55% 25%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      radial-gradient(circle at 75% 45%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      radial-gradient(circle at 42% 55%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      linear-gradient(#f0a85a,#d98c3f);
+  }
+  .layer.bun_bottom{width:calc(96px*var(--u)); height:calc(18px*var(--u));
+    border-radius:calc(6px*var(--u)) calc(6px*var(--u)) calc(12px*var(--u)) calc(12px*var(--u));
+    background:linear-gradient(#e8a050,#c87f35);}
+  .layer.patty{width:calc(90px*var(--u)); height:calc(16px*var(--u)); border-radius:calc(8px*var(--u));
+    background:linear-gradient(#7a4a2b,#54311d); margin:calc(-2px*var(--u)) 0;}
+  .layer.patty_raw{width:calc(90px*var(--u)); height:calc(16px*var(--u)); border-radius:calc(8px*var(--u));
+    background:linear-gradient(#ef9aa2,#d06b75); margin:calc(-2px*var(--u)) 0;}
+  .layer.cheese{width:calc(100px*var(--u)); height:calc(10px*var(--u)); border-radius:calc(3px*var(--u));
+    background:linear-gradient(#ffd24d,#f5b91e); margin:calc(-2px*var(--u)) 0;}
+  .layer.lettuce{width:calc(102px*var(--u)); height:calc(10px*var(--u));
+    border-radius:calc(5px*var(--u));
+    background:radial-gradient(circle at 10% 100%, #5bbf3e 30%, transparent 31%) ,
+      radial-gradient(circle at 35% 0%, #8fe06a 30%, transparent 31%), linear-gradient(#7ed957,#5bbf3e);
+    margin:calc(-2px*var(--u)) 0;}
+  .layer.tomato{width:calc(86px*var(--u)); height:calc(11px*var(--u)); border-radius:calc(6px*var(--u));
+    background:linear-gradient(#ef5350,#d3302c); margin:calc(-2px*var(--u)) 0;}
+  .layer.onion{width:calc(92px*var(--u)); height:calc(9px*var(--u)); border-radius:calc(5px*var(--u));
+    background:repeating-linear-gradient(90deg,#ead9f5 0 calc(10px*var(--u)),#cdb0e3 calc(10px*var(--u)) calc(14px*var(--u)));
+    margin:calc(-2px*var(--u)) 0;}
+  .layer.pickle{width:calc(82px*var(--u)); height:calc(9px*var(--u)); border-radius:calc(5px*var(--u));
+    background:repeating-linear-gradient(90deg,#5a9e3d 0 calc(14px*var(--u)),#447a2c calc(14px*var(--u)) calc(18px*var(--u)));
+    margin:calc(-2px*var(--u)) 0;}
+  .layer.sauceLayer{width:calc(94px*var(--u)); height:calc(13px*var(--u)); margin:calc(-4px*var(--u)) 0;
+    z-index:1;}
+  .layer.sauceLayer svg{width:100%; height:100%; display:block; overflow:visible;}
+  .layer.cosmic svg path{filter:drop-shadow(0 0 calc(3px*var(--u)) #c026d3);}
+  .layer.popIn{animation:pop .18s ease-out;}
+  @keyframes pop{from{transform:scale(1.4) translateY(-8px); opacity:.4}to{transform:none; opacity:1}}
+  .layer.squirtIn{animation:spread .55s ease-out; transform-origin:center;}
+  @keyframes spread{
+    0%{transform:scaleX(.08); opacity:.5;}
+    65%{transform:scaleX(1.18); opacity:1;}
+    100%{transform:scaleX(1);}
+  }
+
+  /* ---------- Overlay ---------- */
+  #overlay{
+    position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center;
+    background:rgba(6,4,20,.86); backdrop-filter:blur(6px); padding:20px;
+  }
+  #overlay.hidden{display:none;}
+  .card{
+    max-width:430px; width:100%; text-align:center; background:rgba(26,16,64,.85);
+    border:1px solid var(--line); border-radius:24px; padding:26px 22px;
+    box-shadow:0 0 60px rgba(139,92,246,.25);
+  }
+  .card h1{margin:0 0 4px; font-size:30px;
+    background:linear-gradient(90deg,#22d3ee,#8b5cf6,#f472b6); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .card h2{margin:0 0 12px; font-size:22px;}
+  .card p{font-size:14px; line-height:1.55; color:#cfc8ee; margin:10px 0;}
+  .card .how{text-align:left; font-size:13.5px; margin:14px auto; max-width:340px;}
+  .card .how div{margin:7px 0; display:flex; gap:8px; align-items:flex-start;}
+  .bigbtn{
+    background:linear-gradient(135deg,#22d3ee,#8b5cf6); color:#fff; border:none; border-radius:999px;
+    font-size:18px; font-weight:800; padding:14px 44px; cursor:pointer; letter-spacing:.5px; margin-top:10px;
+    box-shadow:0 6px 24px rgba(139,92,246,.5);
+  }
+  .bigbtn:active{transform:scale(.95);}
+  .stat{font-size:16px; margin:6px 0;}
+  .stat b{color:var(--gold);}
+
+  /* ---------- Wider screens ---------- */
+  @media (min-width:760px) and (min-height:600px){
+    #game{max-width:720px;}
+    #customers{min-height:190px;}
+    .cust .alien{font-size:36px;}
+    .cust .order{--u:.62;}
+    #ticket{width:150px;}
+    #ticketStack{--u:.8;}
+    #grill{width:150px;}
+    .slot{height:58px;}
+    #tray{gap:8px;}
+    .ing{font-size:11px; padding:6px 2px;}
+    .ing .mini{--u:.52;}
+  }
+  @media (max-height:640px){
+    #customers{min-height:128px;}
+    .cust .alien{font-size:20px;}
+    .cust .order{--u:.4;}
+    .slot{height:40px;}
+    #ticketStack{--u:.55;}
+  }
+</style>
+</head>
+<body>
+<div id="stars"></div>
+
+<div id="game">
+  <header>
+    <div class="pill"><span class="lbl">Day</span><span id="dayN">1</span></div>
+    <div class="pill">💰 <span id="coinsN">0</span></div>
+    <div class="pill" id="livesP">❤️❤️❤️</div>
+    <button id="muteBtn">🔊</button>
+  </header>
+
+  <div id="customers"></div>
+
+  <div id="assembly">
+    <div id="toast"></div>
+    <div id="ticket">
+      <span class="tlbl">ORDER</span>
+      <span id="ticketAlien"></span>
+      <div id="ticketStack"></div>
+    </div>
+    <div id="plateWrap">
+      <div id="squirt"></div>
+      <div id="stack"></div>
+      <div id="plate"></div>
+    </div>
+    <div class="sideBtns">
+      <button class="abtn" id="undoBtn" title="Remove top layer">↩️</button>
+      <button class="abtn" id="trashBtn" title="Trash burger">🗑️</button>
+      <button class="abtn" id="serveBtn">SERVE 🚀</button>
+    </div>
+  </div>
+
+  <div id="lower">
+    <div id="grill">
+      <h3>🔥 Grill</h3>
+      <div class="slot empty" data-i="0"><span class="plus">＋</span><div class="meat"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <div class="slot empty" data-i="1"><span class="plus">＋</span><div class="meat"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <div class="slot empty" data-i="2"><span class="plus">＋</span><div class="meat"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+    </div>
+    <div id="tray"></div>
+  </div>
+</div>
+
+<div id="ghost"><div class="gwrap"></div></div>
+
+<div id="overlay">
+  <div class="card" id="ovCard"></div>
+</div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+
+/* ================= Data ================= */
+const ING={
+  bun_bottom:{label:'Bun'},
+  bun_top:{label:'Top Bun'},
+  patty:{label:'Patty'},
+  patty_raw:{label:'Raw Patty'},
+  cheese:{label:'Cheese'},
+  lettuce:{label:'Lettuce'},
+  tomato:{label:'Tomato'},
+  onion:{label:'Onion'},
+  pickle:{label:'Pickle'},
+  ketchup:{label:'Ketchup'},
+  mustard:{label:'Mustard'},
+  cosmic:{label:'Cosmic'},
+};
+const SAUCES={ketchup:'#e63946', mustard:'#eab308', cosmic:'#c026d3'};
+const TRAY=['patty_raw','bun_bottom','bun_top','cheese','lettuce','tomato','onion','pickle','ketchup','mustard','cosmic'];
+const MIDDLE=['patty','cheese','lettuce','tomato','onion','pickle','ketchup','mustard','cosmic'];
+const ALIENS=['👽','🤖','👾','🐙','🦑','🌚','🦠','🐸'];
+const COOK_TIME=5, READY_TIME=7;     // seconds raw→ready, ready window before burnt
+
+/* ================= State ================= */
+const S={
+  phase:'menu', day:1, coins:0, lives:3, best:+(localStorage.getItem('gb_best')||0),
+  stack:[], grill:[null,null,null], customers:[], selected:null,
+  nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false,
+};
+const dayTotal=()=>4+S.day;
+const maxCust=()=>S.day>=4?3:(S.day>=2?2:1);
+
+/* ================= Audio ================= */
+let AC=null;
+function beep(f,d,type='square',v=.12){
+  if(S.muted)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended')AC.resume();
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);
+    o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+const sTap=()=>beep(420,.06,'square',.07);
+const sPop=()=>beep(660,.09,'triangle',.14);
+const sSquirt=()=>{beep(300,.1,'sawtooth',.08);setTimeout(()=>beep(520,.12,'triangle',.1),70);};
+const sGood=()=>{beep(523,.12,'triangle',.15);setTimeout(()=>beep(659,.12,'triangle',.15),90);setTimeout(()=>beep(784,.2,'triangle',.15),180);};
+const sBad=()=>{beep(180,.25,'sawtooth',.12);setTimeout(()=>beep(140,.3,'sawtooth',.12),120);};
+const sBell=()=>beep(1047,.25,'sine',.15);
+
+/* ================= Stars ================= */
+(function(){
+  const wrap=$('#stars');
+  for(let i=0;i<70;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*2.2+.6;
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;animation-delay:${Math.random()*3}s;animation-duration:${2+Math.random()*3}s`;
+    wrap.appendChild(s);
+  }
+})();
+
+/* ================= Layer rendering ================= */
+const SQUIGGLE='M3 9 Q 9 1 15 9 T 27 9 T 39 9 T 51 9 T 63 9 T 75 9 T 87 9 T 97 9';
+function layerEl(type,anim){
+  const d=document.createElement('div');
+  if(SAUCES[type]){
+    d.className='layer sauceLayer '+type+(anim?' '+anim:'');
+    d.innerHTML=`<svg viewBox="0 0 100 12" preserveAspectRatio="none"><path d="${SQUIGGLE}" fill="none" stroke="${SAUCES[type]}" stroke-width="5" stroke-linecap="round"/></svg>`;
+  }else{
+    d.className='layer '+type+(anim?' '+anim:'');
+  }
+  return d;
+}
+function renderMini(container,order){
+  container.innerHTML='';
+  order.forEach(t=>container.appendChild(layerEl(t)));
+}
+let toastT=null;
+function toast(msg,ms=1400){
+  const t=$('#toast');t.textContent=msg;t.style.opacity=1;
+  clearTimeout(toastT);toastT=setTimeout(()=>t.style.opacity=0,ms);
+}
+function lerpColor(a,b,t){
+  const pa=a.match(/\w\w/g).map(x=>parseInt(x,16)),pb=b.match(/\w\w/g).map(x=>parseInt(x,16));
+  return '#'+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+
+/* ================= Orders & customers ================= */
+function makeOrder(){
+  const base=Math.min(2+Math.floor((S.day-1)/2),6);
+  const n=Math.max(1,base-(Math.random()<.4?1:0));
+  const mid=['patty'];
+  while(mid.length<n){
+    const pick=MIDDLE[Math.floor(Math.random()*MIDDLE.length)];
+    if(pick!=='patty'||Math.random()<.25)mid.push(pick); // extra patties are rare-ish
+  }
+  for(let i=mid.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mid[i],mid[j]]=[mid[j],mid[i]];}
+  return ['bun_bottom',...mid,'bun_top'];
+}
+function spawnCustomer(){
+  const order=makeOrder();
+  const dur=Math.max(26,(52-S.day*3))+order.length*4;
+  const c={
+    id:S.nextCid++,
+    alien:ALIENS[Math.floor(Math.random()*ALIENS.length)],
+    order, patience:dur, maxPatience:dur, el:null,
+  };
+  const el=document.createElement('div');
+  el.className='cust';
+  el.innerHTML=`<div class="alien">${c.alien}</div>
+    <div class="pbar"><i style="width:100%"></i></div>
+    <div class="order"></div><div class="zap"></div>`;
+  renderMini(el.querySelector('.order'),order);
+  el.addEventListener('pointerdown',()=>{selectCustomer(c.id);sTap();});
+  c.el=el;
+  $('#customers').appendChild(el);
+  S.customers.push(c);
+  S.daySpawned++;
+  if(!S.selected)selectCustomer(c.id);
+  updateServe();
+}
+function selectCustomer(id){
+  S.selected=id;
+  S.customers.forEach(c=>c.el.classList.toggle('selected',c.id===id));
+  renderTicket();
+  updateServe();
+}
+function renderTicket(){
+  const c=S.customers.find(x=>x.id===S.selected);
+  const t=$('#ticket');
+  if(!c){t.style.display='none';return;}
+  t.style.display='flex';
+  $('#ticketAlien').textContent=c.alien;
+  renderMini($('#ticketStack'),c.order);
+}
+function removeCustomer(c,emoji){
+  const z=c.el.querySelector('.zap');
+  z.textContent=emoji;z.style.display='flex';
+  c.dead=true;
+  setTimeout(()=>{c.el.remove();},650);
+  S.customers=S.customers.filter(x=>x!==c);
+  if(S.selected===c.id)selectCustomer(S.customers[0]?S.customers[0].id:null);
+  S.dayResolved++;
+  renderTicket();
+  updateServe();
+}
+
+/* ================= Stack ================= */
+function renderStack(anim='popIn'){
+  const st=$('#stack');st.innerHTML='';
+  S.stack.forEach((t,i)=>st.appendChild(layerEl(t,i===S.stack.length-1?anim:null)));
+  updateServe();
+}
+function addLayer(t,anim){
+  if(S.phase!=='play')return false;
+  if(S.stack.length>=12){toast('🍔 Whoa, too tall!');return false;}
+  S.stack.push(t);sPop();renderStack(anim);
+  return true;
+}
+function squirtSauce(type){
+  if(S.phase!=='play')return;
+  if(S.stack.length>=12){toast('🍔 Whoa, too tall!');return;}
+  const sq=$('#squirt');
+  sq.innerHTML=`<svg width="36" height="50" viewBox="0 0 34 48">
+    <path d="M17 0 L22 9 L12 9 Z" fill="${SAUCES[type]}"/>
+    <rect x="7" y="9" width="20" height="37" rx="9" fill="${SAUCES[type]}" opacity=".9"/></svg>`;
+  sq.style.bottom=($('#stack').offsetHeight+30)+'px';
+  sq.classList.remove('go');void sq.offsetWidth;sq.classList.add('go');
+  clearTimeout(sq._t);sq._t=setTimeout(()=>sq.classList.remove('go'),700);
+  sSquirt();
+  S.stack.push(type);
+  renderStack('squirtIn');
+}
+
+/* ================= Tray (drag sources) ================= */
+(function buildTray(){
+  const tray=$('#tray');
+  TRAY.forEach(t=>{
+    const b=document.createElement('button');
+    b.className='ing'+(SAUCES[t]?' sauceBtn':'');
+    b.innerHTML=`<span class="mini"></span><span>${ING[t].label}</span>`;
+    renderMini(b.querySelector('.mini'),[t]);
+    if(SAUCES[t]){
+      b.addEventListener('pointerdown',e=>{e.preventDefault();squirtSauce(t);});
+    }else{
+      b.addEventListener('pointerdown',e=>{e.preventDefault();startDrag(e,t);});
+    }
+    tray.appendChild(b);
+  });
+})();
+$('#undoBtn').addEventListener('pointerdown',()=>{
+  if(S.phase!=='play'||!S.stack.length)return;
+  S.stack.pop();sTap();renderStack(null);
+});
+$('#trashBtn').addEventListener('pointerdown',e=>{
+  if(drag)return; // drop handling deals with drags
+  if(S.phase!=='play'||!S.stack.length)return;
+  S.stack=[];sBad();renderStack(null);toast('🗑️ Burger trashed');
+});
+
+/* ================= Drag & drop ================= */
+let drag=null;
+const ghost=$('#ghost'), gwrap=ghost.querySelector('.gwrap');
+function startDrag(e,type,fromSlot=null,slotState=null){
+  if(drag||S.phase!=='play')return;
+  drag={type,fromSlot,slotState,startX:e.clientX,startY:e.clientY,moved:false,pid:e.pointerId};
+  gwrap.innerHTML='';
+  gwrap.appendChild(layerEl(type));
+  ghost.style.display='block';
+  moveGhost(e);
+  try{e.target.setPointerCapture(e.pointerId);}catch(_){}
+  // highlight valid targets
+  if(type==='patty_raw'){
+    slotEls.forEach((el,i)=>{if(!S.grill[i])el.classList.add('dropHint');});
+  }else{
+    $('#plateWrap').classList.add('dropHint');
+  }
+  $('#trashBtn').classList.add('dropHint');
+}
+function moveGhost(e){ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';}
+function clearDragUI(){
+  ghost.style.display='none';
+  $('#plateWrap').classList.remove('dropHint');
+  $('#trashBtn').classList.remove('dropHint');
+  slotEls.forEach(el=>el.classList.remove('dropHint'));
+}
+function inRect(x,y,el,pad=0){
+  const r=el.getBoundingClientRect();
+  return x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;
+}
+function cancelDrag(){
+  if(!drag)return;
+  if(drag.fromSlot!=null)S.grill[drag.fromSlot]=drag.slotState; // put patty back
+  drag=null;clearDragUI();
+}
+window.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.pid)return;
+  if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>8)drag.moved=true;
+  moveGhost(e);
+});
+window.addEventListener('pointercancel',cancelDrag);
+window.addEventListener('pointerup',e=>{
+  if(!drag||e.pointerId!==drag.pid)return;
+  const d=drag;drag=null;clearDragUI();
+  const x=e.clientX,y=e.clientY;
+  if(!d.moved){
+    if(d.fromSlot!=null){S.grill[d.fromSlot]=d.slotState;toast('👆 Drag the patty onto the burger!');}
+    else toast(d.type==='patty_raw'?'👆 Drag it onto the grill!':'👆 Drag it onto the burger!');
+    return;
+  }
+  // trash
+  if(inRect(x,y,$('#trashBtn'),6)){
+    sBad();toast('🗑️ Tossed into space');
+    return; // slot already emptied / tray item just vanishes
+  }
+  // raw patty → grill slot
+  if(d.type==='patty_raw'){
+    for(let i=0;i<slotEls.length;i++){
+      if(!S.grill[i]&&inRect(x,y,slotEls[i],8)){
+        S.grill[i]={placedAt:S.time};sTap();return;
+      }
+    }
+    return; // dropped nowhere
+  }
+  // ingredient / cooked patty → plate
+  if(inRect(x,y,$('#plateWrap'),24)){
+    addLayer(d.type,'popIn');
+  }else if(d.fromSlot!=null){
+    S.grill[d.fromSlot]=d.slotState; // missed: put patty back on grill
+  }
+});
+
+/* ================= Grill ================= */
+const slotEls=[...document.querySelectorAll('.slot')];
+slotEls.forEach(el=>{
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    if(S.phase!=='play'||drag)return;
+    const i=+el.dataset.i, g=S.grill[i];
+    if(!g){toast('🥩 Drag a raw patty here!');return;}
+    const e2=S.time-g.placedAt;
+    if(e2<COOK_TIME){toast('⏳ Still cooking…');return;}
+    if(e2<COOK_TIME+READY_TIME){
+      const state=S.grill[i];S.grill[i]=null;
+      startDrag(e,'patty',i,state);
+    }else{
+      S.grill[i]=null;sBad();toast('🔥 Burnt! Trashed.');
+    }
+  });
+});
+function renderGrill(){
+  slotEls.forEach((el,i)=>{
+    const g=S.grill[i], meat=el.querySelector('.meat'), tag=el.querySelector('.tag'),
+          plus=el.querySelector('.plus'), prog=el.querySelector('.prog i');
+    el.classList.remove('ready','burnt');
+    if(!g){el.classList.add('empty');meat.style.display='none';plus.style.display='';tag.textContent='';prog.style.width='0';return;}
+    el.classList.remove('empty');plus.style.display='none';meat.style.display='block';
+    const e=S.time-g.placedAt;
+    if(e<COOK_TIME){
+      const p=e/COOK_TIME;
+      meat.style.background=lerpColor('e8838a','6b3a22',p);
+      tag.textContent='COOKING';tag.style.color='#f97316';
+      prog.style.width=(p*100)+'%';prog.style.background='#f97316';
+    }else if(e<COOK_TIME+READY_TIME){
+      meat.style.background='#6b3a22';
+      el.classList.add('ready');
+      tag.textContent='READY! DRAG';tag.style.color='#34d399';
+      const left=1-(e-COOK_TIME)/READY_TIME;
+      prog.style.width=(left*100)+'%';prog.style.background='#34d399';
+    }else{
+      meat.style.background='#1c1917';
+      el.classList.add('burnt');
+      tag.textContent='BURNT';tag.style.color='#ef4444';
+      prog.style.width='100%';prog.style.background='#ef4444';
+    }
+  });
+}
+
+/* ================= Serving ================= */
+function updateServe(){
+  $('#serveBtn').disabled=!(S.phase==='play'&&S.selected&&S.stack.length>0);
+}
+$('#serveBtn').addEventListener('pointerdown',()=>{
+  if(S.phase!=='play')return;
+  const c=S.customers.find(x=>x.id===S.selected);
+  if(!c||!S.stack.length)return;
+  const ok=S.stack.length===c.order.length&&S.stack.every((t,i)=>t===c.order[i]);
+  if(ok){
+    const frac=Math.max(0,c.patience/c.maxPatience);
+    const tip=Math.floor(frac*6);
+    const pay=4+(c.order.length-2)*2+tip;
+    S.coins+=pay;S.dayEarned+=pay;
+    sGood();toast(`✨ Perfect! +💰${pay}${tip>=4?' (great tip!)':''}`);
+    removeCustomer(c,'😋');
+  }else{
+    sBad();
+    c.patience=Math.max(1,c.patience-c.maxPatience*.25);
+    c.el.classList.remove('angry');void c.el.offsetWidth;c.el.classList.add('angry');
+    toast('❌ Wrong order! Check the ticket.');
+  }
+  S.stack=[];renderStack(null);renderHud();
+});
+
+/* ================= HUD / overlay ================= */
+function renderHud(){
+  $('#dayN').textContent=S.day;
+  $('#coinsN').textContent=S.coins;
+  $('#livesP').textContent=S.lives>0?'❤️'.repeat(S.lives):'💔';
+}
+$('#muteBtn').addEventListener('pointerdown',()=>{
+  S.muted=!S.muted;
+  $('#muteBtn').textContent=S.muted?'🔇':'🔊';
+});
+function showOverlay(html){$('#ovCard').innerHTML=html;$('#overlay').classList.remove('hidden');}
+function hideOverlay(){$('#overlay').classList.add('hidden');}
+
+function showMenu(){
+  S.phase='menu';
+  showOverlay(`
+    <h1>🍔 GALAXY BURGER</h1>
+    <p>The galaxy is hungry. You're the chef.</p>
+    <div class="how">
+      <div>👽 <span>Aliens beam in with an order — the big <b>ORDER ticket</b> shows the selected customer's burger. Match it <b>exactly, bottom to top</b>.</span></div>
+      <div>🥩 <span><b>Drag</b> a raw patty onto the grill. When it glows <b style="color:#34d399">READY</b>, drag it onto the burger — don't let it burn!</span></div>
+      <div>🥬 <span><b>Drag</b> ingredients onto the plate to stack them. ↩️ undo, or drag anything to 🗑️.</span></div>
+      <div>🧂 <span><b>Tap a sauce</b> to squirt &amp; spread it on top — ketchup, mustard or cosmic goo.</span></div>
+      <div>🚀 <span>Tap a customer to select them, then <b>SERVE</b> before their patience runs out. 3 walkouts and it's game over!</span></div>
+    </div>
+    <p><a href="topview.html" style="color:#22d3ee;font-weight:700">🛰 Try the Top-View Kitchen mode!</a></p>
+    ${S.best?`<p class="stat">Best run: <b>💰${S.best}</b></p>`:''}
+    <button class="bigbtn" id="playBtn">PLAY ▶</button>`);
+  $('#playBtn').addEventListener('pointerdown',startGame);
+}
+function startGame(){
+  Object.assign(S,{phase:'play',day:1,coins:0,lives:3,stack:[],grill:[null,null,null],
+    customers:[],selected:null,spawnT:.8,daySpawned:0,dayResolved:0,dayEarned:0});
+  $('#customers').innerHTML='';
+  renderStack(null);renderTicket();renderHud();hideOverlay();sBell();
+}
+function endDay(){
+  S.phase='day';sBell();
+  showOverlay(`
+    <h2>🌟 Day ${S.day} complete!</h2>
+    <p class="stat">Earned today: <b>💰${S.dayEarned}</b></p>
+    <p class="stat">Total: <b>💰${S.coins}</b></p>
+    <p>${S.day+1>=4?'Three hungry aliens at once now — stay frosty! 🥶':'It gets busier from here…'}</p>
+    <button class="bigbtn" id="nextBtn">DAY ${S.day+1} ▶</button>`);
+  $('#nextBtn').addEventListener('pointerdown',()=>{
+    S.day++;S.daySpawned=0;S.dayResolved=0;S.dayEarned=0;S.spawnT=1;
+    S.stack=[];S.grill=[null,null,null];
+    renderStack(null);renderTicket();renderHud();hideOverlay();
+    S.phase='play';
+  });
+}
+function gameOver(){
+  S.phase='over';sBad();cancelDrag();
+  const isBest=S.coins>S.best;
+  if(isBest){S.best=S.coins;localStorage.setItem('gb_best',S.best);}
+  showOverlay(`
+    <h2>💀 GAME OVER</h2>
+    <p>Too many aliens left hangry…</p>
+    <p class="stat">Days survived: <b>${S.day}</b></p>
+    <p class="stat">Coins earned: <b>💰${S.coins}</b> ${isBest?'🏆 NEW BEST!':''}</p>
+    <p class="stat">Best: <b>💰${S.best}</b></p>
+    <button class="bigbtn" id="againBtn">PLAY AGAIN ▶</button>`);
+  $('#againBtn').addEventListener('pointerdown',startGame);
+}
+
+/* ================= Main loop ================= */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(S.phase==='play'){
+    S.time+=dt;
+    // spawn
+    S.spawnT-=dt;
+    if(S.spawnT<=0&&S.customers.length<maxCust()&&S.daySpawned<dayTotal()){
+      spawnCustomer();
+      S.spawnT=2.5+Math.random()*4;
+    }
+    // patience
+    for(const c of [...S.customers]){
+      c.patience-=dt;
+      const frac=Math.max(0,c.patience/c.maxPatience);
+      const bar=c.el.querySelector('.pbar i');
+      bar.style.width=(frac*100)+'%';
+      bar.style.background=frac>.5?'var(--green)':(frac>.25?'var(--gold)':'var(--red)');
+      if(c.patience<=0){
+        S.lives--;sBad();renderHud();
+        removeCustomer(c,'💢');
+        toast('💔 A customer stormed off!');
+        if(S.lives<=0){gameOver();break;}
+      }
+    }
+    // day end
+    if(S.phase==='play'&&S.dayResolved>=dayTotal()&&S.customers.length===0)endDay();
+    renderGrill();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+renderHud();
+showMenu();
+
+// block double-tap zoom / scroll gestures
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('dblclick',e=>e.preventDefault());
+</script>
+</body>
+</html>
