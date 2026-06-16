@@ -217,8 +217,18 @@
     box-shadow:0 6px 24px rgba(139,92,246,.5);
   }
   .bigbtn:active{transform:scale(.95);}
+  .bigbtn.easy{background:linear-gradient(135deg,#34d399,#f472b6); box-shadow:0 6px 24px rgba(244,114,182,.5);}
+  .btnRow{display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:6px;}
+  .hint{font-size:12px; opacity:.72; margin-top:8px;}
   .stat{font-size:16px; margin:6px 0;}
   .stat b{color:var(--gold);}
+
+  /* ---------- Toddler / easy mode: bigger orders ---------- */
+  body.easy .cust .order{--u:.7;}
+  body.easy #ticket{width:166px; border-color:rgba(52,211,153,.7);}
+  body.easy #ticket .tlbl{font-size:12px; color:#6ee7b7;}
+  body.easy #ticketAlien{font-size:34px;}
+  body.easy #ticketStack{--u:1;}
 
   /* ---------- Wider screens ---------- */
   @media (min-width:760px) and (min-height:600px){
@@ -321,10 +331,10 @@ const COOK_TIME=5, READY_TIME=7;     // seconds raw→ready, ready window before
 const S={
   phase:'menu', day:1, coins:0, lives:3, best:+(localStorage.getItem('gb_best')||0),
   stack:[], grill:[null,null,null], customers:[], selected:null,
-  nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false,
+  nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false, easy:false,
 };
-const dayTotal=()=>4+S.day;
-const maxCust=()=>S.day>=4?3:(S.day>=2?2:1);
+const dayTotal=()=>S.easy?3:4+S.day;
+const maxCust=()=>S.easy?1:(S.day>=4?3:(S.day>=2?2:1));
 
 /* ================= Audio ================= */
 let AC=null;
@@ -386,6 +396,12 @@ function lerpColor(a,b,t){
 
 /* ================= Orders & customers ================= */
 function makeOrder(){
+  if(S.easy){
+    // toddler: bun, patty, maybe one friendly topping, bun — short & simple
+    const mid=['patty'];
+    if(Math.random()<.55)mid.push(['cheese','lettuce','tomato','ketchup'][Math.floor(Math.random()*4)]);
+    return ['bun_bottom',...mid,'bun_top'];
+  }
   const base=Math.min(2+Math.floor((S.day-1)/2),6);
   const n=Math.max(1,base-(Math.random()<.4?1:0));
   const mid=['patty'];
@@ -579,7 +595,7 @@ slotEls.forEach(el=>{
     if(!g){toast('🥩 Drag a raw patty here!');return;}
     const e2=S.time-g.placedAt;
     if(e2<COOK_TIME){toast('⏳ Still cooking…');return;}
-    if(e2<COOK_TIME+READY_TIME){
+    if(e2<COOK_TIME+READY_TIME||S.easy){
       const state=S.grill[i];S.grill[i]=null;
       startDrag(e,'patty',i,state);
     }else{
@@ -600,11 +616,11 @@ function renderGrill(){
       meat.style.background=lerpColor('e8838a','6b3a22',p);
       tag.textContent='COOKING';tag.style.color='#f97316';
       prog.style.width=(p*100)+'%';prog.style.background='#f97316';
-    }else if(e<COOK_TIME+READY_TIME){
+    }else if(e<COOK_TIME+READY_TIME||S.easy){
       meat.style.background='#6b3a22';
       el.classList.add('ready');
       tag.textContent='READY! DRAG';tag.style.color='#34d399';
-      const left=1-(e-COOK_TIME)/READY_TIME;
+      const left=S.easy?1:1-(e-COOK_TIME)/READY_TIME;
       prog.style.width=(left*100)+'%';prog.style.background='#34d399';
     }else{
       meat.style.background='#1c1917';
@@ -633,9 +649,9 @@ $('#serveBtn').addEventListener('pointerdown',()=>{
     removeCustomer(c,'😋');
   }else{
     sBad();
-    c.patience=Math.max(1,c.patience-c.maxPatience*.25);
+    if(!S.easy)c.patience=Math.max(1,c.patience-c.maxPatience*.25);
     c.el.classList.remove('angry');void c.el.offsetWidth;c.el.classList.add('angry');
-    toast('❌ Wrong order! Check the ticket.');
+    toast(S.easy?'🤔 Not quite — try again!':'❌ Wrong order! Check the ticket.');
   }
   S.stack=[];renderStack(null);renderHud();
 });
@@ -644,7 +660,7 @@ $('#serveBtn').addEventListener('pointerdown',()=>{
 function renderHud(){
   $('#dayN').textContent=S.day;
   $('#coinsN').textContent=S.coins;
-  $('#livesP').textContent=S.lives>0?'❤️'.repeat(S.lives):'💔';
+  $('#livesP').textContent=S.easy?'🧸 Easy':(S.lives>0?'❤️'.repeat(S.lives):'💔');
 }
 $('#muteBtn').addEventListener('pointerdown',()=>{
   S.muted=!S.muted;
@@ -667,12 +683,18 @@ function showMenu(){
     </div>
     <p><a href="topview.html" style="color:#22d3ee;font-weight:700">🛰 Try the Top-View Kitchen mode!</a></p>
     ${S.best?`<p class="stat">Best run: <b>💰${S.best}</b></p>`:''}
-    <button class="bigbtn" id="playBtn">PLAY ▶</button>`);
-  $('#playBtn').addEventListener('pointerdown',startGame);
+    <div class="btnRow">
+      <button class="bigbtn" id="playBtn">PLAY ▶</button>
+      <button class="bigbtn easy" id="easyBtn">🧸 TODDLER MODE</button>
+    </div>
+    <p class="hint">Toddler mode: nobody leaves, nothing burns, no timer — big orders, just stack &amp; serve 💛</p>`);
+  $('#playBtn').addEventListener('pointerdown',()=>startGame(false));
+  $('#easyBtn').addEventListener('pointerdown',()=>startGame(true));
 }
-function startGame(){
+function startGame(easy){
   Object.assign(S,{phase:'play',day:1,coins:0,lives:3,stack:[],grill:[null,null,null],
-    customers:[],selected:null,spawnT:.8,daySpawned:0,dayResolved:0,dayEarned:0});
+    customers:[],selected:null,spawnT:.8,daySpawned:0,dayResolved:0,dayEarned:0,easy:!!easy});
+  document.body.classList.toggle('easy',!!easy);
   $('#customers').innerHTML='';
   renderStack(null);renderTicket();renderHud();hideOverlay();sBell();
 }
@@ -702,7 +724,7 @@ function gameOver(){
     <p class="stat">Coins earned: <b>💰${S.coins}</b> ${isBest?'🏆 NEW BEST!':''}</p>
     <p class="stat">Best: <b>💰${S.best}</b></p>
     <button class="bigbtn" id="againBtn">PLAY AGAIN ▶</button>`);
-  $('#againBtn').addEventListener('pointerdown',startGame);
+  $('#againBtn').addEventListener('pointerdown',()=>startGame(S.easy));
 }
 
 /* ================= Main loop ================= */
@@ -719,12 +741,12 @@ function loop(now){
     }
     // patience
     for(const c of [...S.customers]){
-      c.patience-=dt;
+      if(!S.easy)c.patience-=dt;
       const frac=Math.max(0,c.patience/c.maxPatience);
       const bar=c.el.querySelector('.pbar i');
       bar.style.width=(frac*100)+'%';
       bar.style.background=frac>.5?'var(--green)':(frac>.25?'var(--gold)':'var(--red)');
-      if(c.patience<=0){
+      if(!S.easy&&c.patience<=0){
         S.lives--;sBad();renderHud();
         removeCustomer(c,'💢');
         toast('💔 A customer stormed off!');

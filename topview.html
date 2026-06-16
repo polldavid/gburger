@@ -55,7 +55,7 @@
   .cust .alien{font-size:24px; line-height:1; filter:drop-shadow(0 0 6px rgba(139,92,246,.8));}
   .cust .pbar{width:90%; height:6px; border-radius:4px; background:rgba(0,0,0,.45); overflow:hidden;}
   .cust .pbar i{display:block; height:100%; background:var(--green); border-radius:4px; transition:background .3s;}
-  .cust .order{--u:.45; display:flex; flex-direction:column-reverse; align-items:center; margin-top:2px;}
+  .cust .order{--u:.52; display:flex; flex-direction:column-reverse; align-items:center; margin-top:2px;}
   .cust.angry{animation:shake .4s;}
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
   .cust .zap{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
@@ -122,13 +122,13 @@
   }
   #ticket{
     position:absolute; top:6px; right:6px; z-index:5; pointer-events:none;
-    display:none; flex-direction:column; align-items:center; gap:3px;
-    background:rgba(11,8,32,.78); border:1.5px dashed var(--line); border-radius:12px;
-    padding:7px 10px; min-width:96px;
+    display:none; flex-direction:column; align-items:center; gap:4px;
+    background:rgba(11,8,32,.82); border:1.5px dashed var(--line); border-radius:14px;
+    padding:9px 13px; min-width:118px;
   }
-  #ticket .tlbl{font-size:8px; letter-spacing:2.5px; color:#a78bfa; font-weight:800;}
-  #ticketAlien{font-size:18px; line-height:1;}
-  #ticketStack{--u:.55; display:flex; flex-direction:column-reverse; align-items:center;}
+  #ticket .tlbl{font-size:10px; letter-spacing:2.5px; color:#a78bfa; font-weight:800;}
+  #ticketAlien{font-size:24px; line-height:1;}
+  #ticketStack{--u:.72; display:flex; flex-direction:column-reverse; align-items:center;}
 
   /* ---------- Counter items (top view) ---------- */
   .citem{
@@ -240,8 +240,18 @@
     box-shadow:0 6px 24px rgba(139,92,246,.5);
   }
   .bigbtn:active{transform:scale(.95);}
+  .bigbtn.easy{background:linear-gradient(135deg,#34d399,#f472b6); box-shadow:0 6px 24px rgba(244,114,182,.5);}
+  .btnRow{display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:6px;}
+  .hint{font-size:12px; opacity:.72; margin-top:8px;}
   .stat{font-size:16px; margin:6px 0;}
   .stat b{color:var(--gold);}
+
+  /* ---------- Toddler / easy mode: bigger orders everywhere ---------- */
+  body.easy .cust .order{--u:.66;}
+  body.easy #ticket{min-width:148px; padding:12px 16px; border-color:rgba(52,211,153,.7);}
+  body.easy #ticket .tlbl{font-size:12px; color:#6ee7b7;}
+  body.easy #ticketAlien{font-size:32px;}
+  body.easy #ticketStack{--u:1;}
 
   /* ---------- Burger side-view layers (for order tickets / badges) ---------- */
   .layer{position:relative; flex-shrink:0;}
@@ -280,11 +290,12 @@
   @media (max-width:520px){
     #customers{min-height:104px;}
     .cust .alien{font-size:20px;}
-    .cust .order{--u:.36;}
+    .cust .order{--u:.42;}
     .tv{width:46px; height:46px;}
     .tv.sm{width:32px; height:32px;}
     #grillZone{width:88px;}
-    #ticketStack{--u:.45;}
+    #ticketStack{--u:.6;}
+    body.easy #ticketStack{--u:.82;}
   }
 </style>
 </head>
@@ -353,10 +364,10 @@ const S={
   phase:'menu', day:1, coins:0, lives:3, best:+(localStorage.getItem('gb_best')||0),
   items:[], nextIid:1,
   grill:[null,null,null], customers:[], selected:null,
-  nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false,
+  nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false, easy:false,
 };
-const dayTotal=()=>4+S.day;
-const maxCust=()=>S.day>=4?3:(S.day>=2?2:1);
+const dayTotal=()=>S.easy?3:4+S.day;
+const maxCust=()=>S.easy?1:(S.day>=4?3:(S.day>=2?2:1));
 
 /* ================= Audio ================= */
 let AC=null;
@@ -478,6 +489,12 @@ function lerpColor(a,b,t){
 
 /* ================= Orders & customers ================= */
 function makeOrder(){
+  if(S.easy){
+    // toddler: bun, patty, maybe one friendly topping, bun — short & simple
+    const mid=['patty'];
+    if(Math.random()<.55)mid.push(['cheese','lettuce','tomato','ketchup'][Math.floor(Math.random()*4)]);
+    return ['bun_bottom',...mid,'bun_top'];
+  }
   const base=Math.min(2+Math.floor((S.day-1)/2),6);
   const n=Math.max(1,base-(Math.random()<.4?1:0));
   const mid=['patty'];
@@ -761,9 +778,9 @@ function serve(item,c){
     removeCustomer(c,'😋');
   }else{
     sBad();
-    c.patience=Math.max(1,c.patience-c.maxPatience*.25);
+    if(!S.easy)c.patience=Math.max(1,c.patience-c.maxPatience*.25);
     c.el.classList.remove('angry');void c.el.offsetWidth;c.el.classList.add('angry');
-    toast('❌ Wrong order! Check the ticket.');
+    toast(S.easy?'🤔 Not quite — try again!':'❌ Wrong order! Check the ticket.');
   }
   renderHud();
 }
@@ -777,7 +794,7 @@ slotEls.forEach(el=>{
     if(!g){toast('🥩 Drag a raw patty here!');return;}
     const e2=S.time-g.placedAt;
     if(e2<COOK_TIME){toast('⏳ Still cooking…');return;}
-    if(e2<COOK_TIME+READY_TIME){
+    if(e2<COOK_TIME+READY_TIME||S.easy){
       const state=S.grill[i];S.grill[i]=null;
       startDrag(e,{kind:'slot',fromSlot:i,slotState:state});
     }else{
@@ -799,11 +816,11 @@ function renderGrill(){
       tvp.style.background=`radial-gradient(circle at 45% 40%, ${lerpColor('ef9aa2','7a4a2b',p)} 0 65%, ${lerpColor('d06b75','54311d',p)} 100%)`;
       tag.textContent='COOKING';tag.style.color='#f97316';
       prog.style.width=(p*100)+'%';prog.style.background='#f97316';
-    }else if(e<COOK_TIME+READY_TIME){
+    }else if(e<COOK_TIME+READY_TIME||S.easy){
       tvp.style.background='';tvp.classList.add('tv-patty');
       el.classList.add('ready');
       tag.textContent='READY! DRAG';tag.style.color='#34d399';
-      const left=1-(e-COOK_TIME)/READY_TIME;
+      const left=S.easy?1:1-(e-COOK_TIME)/READY_TIME;
       prog.style.width=(left*100)+'%';prog.style.background='#34d399';
     }else{
       tvp.style.background='';tvp.classList.add('tv-patty','burnt');
@@ -818,7 +835,7 @@ function renderGrill(){
 function renderHud(){
   $('#dayN').textContent=S.day;
   $('#coinsN').textContent=S.coins;
-  $('#livesP').textContent=S.lives>0?'❤️'.repeat(S.lives):'💔';
+  $('#livesP').textContent=S.easy?'🧸 Easy':(S.lives>0?'❤️'.repeat(S.lives):'💔');
 }
 $('#muteBtn').addEventListener('pointerdown',()=>{
   S.muted=!S.muted;
@@ -846,12 +863,18 @@ function showMenu(){
     </div>
     <p><a href="index.html">🍔 Prefer the classic side-view mode?</a></p>
     ${S.best?`<p class="stat">Best run: <b>💰${S.best}</b></p>`:''}
-    <button class="bigbtn" id="playBtn">PLAY ▶</button>`);
-  $('#playBtn').addEventListener('pointerdown',startGame);
+    <div class="btnRow">
+      <button class="bigbtn" id="playBtn">PLAY ▶</button>
+      <button class="bigbtn easy" id="easyBtn">🧸 TODDLER MODE</button>
+    </div>
+    <p class="hint">Toddler mode: nobody leaves, nothing burns, no timer — big orders, just stack &amp; serve 💛</p>`);
+  $('#playBtn').addEventListener('pointerdown',()=>startGame(false));
+  $('#easyBtn').addEventListener('pointerdown',()=>startGame(true));
 }
-function startGame(){
+function startGame(easy){
   Object.assign(S,{phase:'play',day:1,coins:0,lives:3,grill:[null,null,null],
-    customers:[],selected:null,spawnT:.8,daySpawned:0,dayResolved:0,dayEarned:0});
+    customers:[],selected:null,spawnT:.8,daySpawned:0,dayResolved:0,dayEarned:0,easy:!!easy});
+  document.body.classList.toggle('easy',!!easy);
   $('#customers').innerHTML='';
   clearCounter();
   renderTicket();renderHud();hideOverlay();sBell();
@@ -883,7 +906,7 @@ function gameOver(){
     <p class="stat">Coins earned: <b>💰${S.coins}</b> ${isBest?'🏆 NEW BEST!':''}</p>
     <p class="stat">Best: <b>💰${S.best}</b></p>
     <button class="bigbtn" id="againBtn">PLAY AGAIN ▶</button>`);
-  $('#againBtn').addEventListener('pointerdown',startGame);
+  $('#againBtn').addEventListener('pointerdown',()=>startGame(S.easy));
 }
 
 /* ================= Main loop ================= */
@@ -898,12 +921,12 @@ function loop(now){
       S.spawnT=2.5+Math.random()*4;
     }
     for(const c of [...S.customers]){
-      c.patience-=dt;
+      if(!S.easy)c.patience-=dt;
       const frac=Math.max(0,c.patience/c.maxPatience);
       const bar=c.el.querySelector('.pbar i');
       bar.style.width=(frac*100)+'%';
       bar.style.background=frac>.5?'var(--green)':(frac>.25?'var(--gold)':'var(--red)');
-      if(c.patience<=0){
+      if(!S.easy&&c.patience<=0){
         S.lives--;sBad();renderHud();
         removeCustomer(c,'💢');
         toast('💔 A customer stormed off!');
