@@ -137,11 +137,22 @@
   }
   .citem.dragging{opacity:.25;}
   .citem .badge{
-    position:absolute; left:50%; top:100%; transform:translate(-50%,-2px);
-    --u:.38; display:flex; flex-direction:column-reverse; align-items:center;
-    background:rgba(11,8,32,.72); border:1px solid var(--line);
-    border-radius:8px; padding:3px 6px; pointer-events:none;
+    position:absolute; left:50%; top:100%; transform:translate(-50%,0);
+    --u:.5; display:flex; flex-direction:column-reverse; align-items:center;
+    background:rgba(11,8,32,.82); border:1px solid var(--line);
+    border-radius:9px; padding:4px 7px; pointer-events:none;
   }
+  body.easy .citem .badge{--u:.82; padding:6px 10px; border-radius:13px; border-color:rgba(52,211,153,.6);}
+  .citem .itemUndo{
+    position:absolute; top:-10px; right:-10px; z-index:25;
+    width:30px; height:30px; border-radius:50%; padding:0; line-height:1;
+    background:rgba(11,8,32,.92); border:2px solid var(--cyan); color:#fff;
+    font-size:17px; font-weight:800; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 7px rgba(0,0,0,.55);
+  }
+  .citem .itemUndo:active{transform:scale(.88);}
+  body.easy .citem .itemUndo{width:42px; height:42px; font-size:23px; top:-15px; right:-15px; border-color:#34d399;}
 
   /* ---------- Top-view sprites ---------- */
   .tv{width:56px; height:56px; border-radius:50%; position:relative; pointer-events:none;}
@@ -449,7 +460,10 @@ const TV_SCALE={bun_bottom:.98,bun_top:.95,patty:.86,patty_raw:.86,cheese:.96,le
 function stackTvEl(layers){
   const wrap=document.createElement('div');
   wrap.className='tvStack';
-  const base=56;
+  const base=S.easy?86:64;            // toddler burgers are much bigger
+  const step=base/14;                 // per-layer lift scales with size
+  wrap.style.width=base+'px';
+  wrap.style.height=base+'px';
   let lift=0, lastSize=base, sauceN=0;
   layers.forEach((t,i)=>{
     if(SAUCES[t]){
@@ -460,7 +474,7 @@ function stackTvEl(layers){
         transform:translate(-50%,-50%) translateY(${-lift}px) rotate(${sauceN*38}deg);`;
       o.innerHTML=sauceSquiggleSvg(SAUCES[t]);
       wrap.appendChild(o);
-      sauceN++;lift+=1;
+      sauceN++;lift+=step*.25;
       return;
     }
     const d=document.createElement('div');
@@ -471,7 +485,7 @@ function stackTvEl(layers){
       transform:translate(-50%,-50%) translateY(${-lift}px)${t==='cheese'?' rotate(8deg)':''};
       box-shadow:0 3px 3px rgba(50,25,5,.4);`;
     wrap.appendChild(d);
-    lift+=4;
+    lift+=step;
   });
   return wrap;
 }
@@ -554,7 +568,9 @@ function removeCustomer(c,emoji){
 const counter=$('#counter');
 function clampPos(x,y){
   const r=counter.getBoundingClientRect();
-  return [Math.min(Math.max(x,34),r.width-34), Math.min(Math.max(y,34),r.height-44)];
+  const p=S.easy?54:40;                 // keep bigger sprites + undo button on-screen
+  const btm=S.easy?96:64;               // extra room below for the status badge
+  return [Math.min(Math.max(x,p),r.width-p), Math.min(Math.max(y,p),r.height-btm)];
 }
 function addItem(layers,x,y,fx){
   [x,y]=clampPos(x,y);
@@ -581,6 +597,21 @@ function renderItem(it,fx){
     renderMini(b,it.layers);
     it.el.appendChild(b);
   }
+  if(it.layers.length>=1){            // per-burger "remove last ingredient"
+    const u=document.createElement('button');
+    u.className='itemUndo';
+    u.textContent='↩';
+    u.title='Remove the top thing';
+    u.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();popLayer(it);});
+    it.el.appendChild(u);
+  }
+}
+function popLayer(it){
+  if(!it.layers.length)return;
+  it.layers.pop();
+  sTap();
+  if(!it.layers.length)removeItem(it);
+  else renderItem(it);
 }
 function moveItem(it,x,y){
   [x,y]=clampPos(x,y);
@@ -593,11 +624,12 @@ function removeItem(it){
   updateHint();
 }
 function itemAt(x,y,except){
+  const R=S.easy?MERGE_R*1.7:MERGE_R*1.25;   // forgiving stacking, esp. for toddlers
   let best=null,bd=1e9;
   for(const it of S.items){
     if(it===except)continue;
     const d=Math.hypot(it.x-x,it.y-y);
-    if(d<MERGE_R&&d<bd){bd=d;best=it;}
+    if(d<R&&d<bd){bd=d;best=it;}
   }
   return best;
 }
