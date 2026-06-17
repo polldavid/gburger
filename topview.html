@@ -105,6 +105,15 @@
     background:rgba(244,63,94,.08); flex-shrink:0;
   }
   #trash.dropHint{border-color:var(--red); box-shadow:0 0 14px rgba(244,63,94,.6); background:rgba(244,63,94,.18);}
+  #undoBtn{
+    height:46px; flex-shrink:0; border-radius:12px; padding:0;
+    border:2px solid rgba(34,211,238,.6); background:rgba(34,211,238,.12); color:#e6fbff;
+    font-size:13px; font-weight:800; letter-spacing:.5px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:3px;
+  }
+  #undoBtn:active{transform:scale(.94); background:rgba(34,211,238,.28);}
+  #undoBtn:disabled{opacity:.4;}
+  body.easy #undoBtn{height:60px; font-size:17px; border-color:#34d399; background:rgba(52,211,153,.16);}
 
   #counter{
     flex:1; position:relative; border-radius:16px; overflow:hidden;
@@ -138,21 +147,11 @@
   .citem.dragging{opacity:.25;}
   .citem .badge{
     position:absolute; left:50%; top:100%; transform:translate(-50%,0);
-    --u:.5; display:flex; flex-direction:column-reverse; align-items:center;
+    --u:.82; display:flex; flex-direction:column-reverse; align-items:center;
     background:rgba(11,8,32,.82); border:1px solid var(--line);
-    border-radius:9px; padding:4px 7px; pointer-events:none;
+    border-radius:13px; padding:6px 10px; pointer-events:none;
   }
-  body.easy .citem .badge{--u:.82; padding:6px 10px; border-radius:13px; border-color:rgba(52,211,153,.6);}
-  .citem .itemUndo{
-    position:absolute; top:-10px; right:-10px; z-index:25;
-    width:30px; height:30px; border-radius:50%; padding:0; line-height:1;
-    background:rgba(11,8,32,.92); border:2px solid var(--cyan); color:#fff;
-    font-size:17px; font-weight:800; cursor:pointer;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 2px 7px rgba(0,0,0,.55);
-  }
-  .citem .itemUndo:active{transform:scale(.88);}
-  body.easy .citem .itemUndo{width:42px; height:42px; font-size:23px; top:-15px; right:-15px; border-color:#34d399;}
+  body.easy .citem .badge{border-color:rgba(52,211,153,.6);}
 
   /* ---------- Top-view sprites ---------- */
   .tv{width:56px; height:56px; border-radius:50%; position:relative; pointer-events:none;}
@@ -331,6 +330,7 @@
       <div class="gslot" data-i="0"><div class="ring"></div><div class="tvp tv sm"></div><div class="prog"><i></i></div><div class="tag"></div></div>
       <div class="gslot" data-i="1"><div class="ring"></div><div class="tvp tv sm"></div><div class="prog"><i></i></div><div class="tag"></div></div>
       <div class="gslot" data-i="2"><div class="ring"></div><div class="tvp tv sm"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <button id="undoBtn" title="Remove the last thing you added">↩ Undo</button>
       <div id="trash">🗑️</div>
     </div>
     <div id="counter">
@@ -373,7 +373,7 @@ const MERGE_R=46;          // px: drop within this distance of an item to stack 
 /* ================= State ================= */
 const S={
   phase:'menu', day:1, coins:0, lives:3, best:+(localStorage.getItem('gb_best')||0),
-  items:[], nextIid:1,
+  items:[], nextIid:1, active:null,
   grill:[null,null,null], customers:[], selected:null,
   nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false, easy:false,
 };
@@ -460,7 +460,7 @@ const TV_SCALE={bun_bottom:.98,bun_top:.95,patty:.86,patty_raw:.86,cheese:.96,le
 function stackTvEl(layers){
   const wrap=document.createElement('div');
   wrap.className='tvStack';
-  const base=S.easy?86:64;            // toddler burgers are much bigger
+  const base=86;                      // big, easy-to-see burgers in every mode
   const step=base/14;                 // per-layer lift scales with size
   wrap.style.width=base+'px';
   wrap.style.height=base+'px';
@@ -568,8 +568,8 @@ function removeCustomer(c,emoji){
 const counter=$('#counter');
 function clampPos(x,y){
   const r=counter.getBoundingClientRect();
-  const p=S.easy?54:40;                 // keep bigger sprites + undo button on-screen
-  const btm=S.easy?96:64;               // extra room below for the status badge
+  const p=54;                           // keep bigger sprites + undo button on-screen
+  const btm=96;                         // extra room below for the status badge
   return [Math.min(Math.max(x,p),r.width-p), Math.min(Math.max(y,p),r.height-btm)];
 }
 function addItem(layers,x,y,fx){
@@ -582,6 +582,7 @@ function addItem(layers,x,y,fx){
   it.el=el;
   counter.appendChild(el);
   S.items.push(it);
+  S.active=it;
   renderItem(it,fx);
   updateHint();
   return it;
@@ -596,14 +597,6 @@ function renderItem(it,fx){
     b.className='badge';
     renderMini(b,it.layers);
     it.el.appendChild(b);
-  }
-  if(it.layers.length>=1){            // per-burger "remove last ingredient"
-    const u=document.createElement('button');
-    u.className='itemUndo';
-    u.textContent='↩';
-    u.title='Remove the top thing';
-    u.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();popLayer(it);});
-    it.el.appendChild(u);
   }
 }
 function popLayer(it){
@@ -624,7 +617,7 @@ function removeItem(it){
   updateHint();
 }
 function itemAt(x,y,except){
-  const R=S.easy?MERGE_R*1.7:MERGE_R*1.25;   // forgiving stacking, esp. for toddlers
+  const R=MERGE_R*1.7;   // forgiving stacking for the bigger burgers
   let best=null,bd=1e9;
   for(const it of S.items){
     if(it===except)continue;
@@ -636,6 +629,21 @@ function itemAt(x,y,except){
 function updateHint(){
   $('#counterHint').style.display=S.items.length?'none':'flex';
 }
+function undoLast(){
+  // act on the burger you last touched; fall back to the most recent one
+  let it=(S.active&&S.items.includes(S.active))?S.active:S.items[S.items.length-1];
+  if(!it){toast('🤷 Nothing to undo');return;}
+  // briefly highlight which burger changed
+  it.el.style.transition='filter .15s';it.el.style.filter='drop-shadow(0 0 8px var(--cyan)) drop-shadow(0 4px 4px rgba(60,35,5,.45))';
+  setTimeout(()=>{if(it.el)it.el.style.filter='';},220);
+  popLayer(it);
+  if(!S.items.includes(it))S.active=null;
+}
+$('#undoBtn').addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(S.phase!=='play'||drag)return;
+  undoLast();
+});
 function squirtFxAt(x,y,color){
   const fx=document.createElement('div');
   fx.className='squirtFx';
@@ -676,7 +684,7 @@ function startDrag(e,src){
   ghost.style.display='block';
   moveGhost(e);
   try{e.target.setPointerCapture(e.pointerId);}catch(_){}
-  if(src.kind==='item')src.item.el.classList.add('dragging');
+  if(src.kind==='item'){src.item.el.classList.add('dragging');S.active=src.item;}
   // highlight targets
   const isRaw=(src.kind==='bin'&&src.type==='patty_raw')||
               (src.kind==='item'&&src.item.layers.length===1&&src.item.layers[0]==='patty_raw');
@@ -776,13 +784,14 @@ window.addEventListener('pointerup',e=>{
       else if(d.kind==='slot')target.layers.push('patty');
       else{target.layers.push(...d.item.layers);removeItem(d.item);}
       if(target.layers.length>12){target.layers.length=12;toast('🍔 Whoa, too tall!');}
+      S.active=target;
       sPop();renderItem(target);
       return;
     }
     // free placement
     if(d.kind==='bin')addItem([d.type],cx,cy);
     else if(d.kind==='slot')addItem(['patty'],cx,cy);
-    else moveItem(d.item,cx,cy);
+    else{moveItem(d.item,cx,cy);S.active=d.item;}
     sPop();
     return;
   }
@@ -793,6 +802,7 @@ window.addEventListener('pointerup',e=>{
 function applySauce(target,type){
   if(target.layers.length>=12){toast('🍔 Whoa, too tall!');return;}
   target.layers.push(type);
+  S.active=target;
   squirtFxAt(target.x,target.y-30,SAUCES[type]);
   renderItem(target,true);
 }
@@ -879,6 +889,7 @@ function hideOverlay(){$('#overlay').classList.add('hidden');}
 function clearCounter(){
   S.items.forEach(it=>it.el.remove());
   S.items=[];
+  S.active=null;
   updateHint();
 }
 function showMenu(){
