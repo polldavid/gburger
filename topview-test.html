@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0820">
+<title>Galaxy Burger 🍔 — Top View</title>
+<style>
+  :root{
+    --bg1:#0b0820; --bg2:#1a1040; --panel:rgba(255,255,255,.06);
+    --line:rgba(139,92,246,.45); --neon:#8b5cf6; --cyan:#22d3ee;
+    --gold:#fbbf24; --red:#f43f5e; --green:#34d399;
+    --u:1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+  html,body{height:100%;}
+  body{
+    margin:0; overflow:hidden; position:fixed; inset:0;
+    background:radial-gradient(120% 90% at 50% 0%, var(--bg2) 0%, var(--bg1) 60%, #060414 100%);
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    color:#eee; touch-action:none;
+  }
+  #stars{position:fixed; inset:0; pointer-events:none; z-index:0;}
+  .star{position:absolute; background:#fff; border-radius:50%; opacity:.7; animation:tw 3s infinite alternate;}
+  @keyframes tw{from{opacity:.15}to{opacity:.85}}
+
+  #game{
+    position:relative; z-index:1; height:100dvh; max-width:900px; margin:0 auto;
+    display:flex; flex-direction:column; padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom);
+  }
+
+  /* ---------- HUD ---------- */
+  header{display:flex; gap:6px; align-items:center; padding:6px 2px 4px; flex-wrap:wrap;}
+  .pill{
+    background:var(--panel); border:1px solid var(--line); border-radius:999px;
+    padding:3px 11px; font-weight:700; font-size:13px; display:flex; gap:6px; align-items:center;
+  }
+  .pill .lbl{opacity:.6; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.5px;}
+  #muteBtn{margin-left:auto; background:var(--panel); border:1px solid var(--line); color:#eee;
+    border-radius:999px; width:34px; height:34px; font-size:15px; cursor:pointer;}
+
+  /* ---------- Customers ---------- */
+  #customers{display:flex; gap:8px; min-height:120px; padding:2px; align-items:stretch;}
+  .cust{
+    flex:1; max-width:33.5%; background:var(--panel); border:2px solid transparent; border-radius:14px;
+    padding:5px 4px 6px; display:flex; flex-direction:column; align-items:center; gap:3px;
+    cursor:pointer; transition:border-color .15s, transform .15s, box-shadow .15s; animation:beamIn .35s ease-out;
+    position:relative; overflow:hidden;
+  }
+  @keyframes beamIn{from{transform:translateY(-24px) scale(.7); opacity:0}to{transform:none; opacity:1}}
+  .cust.selected{border-color:var(--cyan); box-shadow:0 0 14px rgba(34,211,238,.35);}
+  .cust.dropHint{border-color:var(--gold); box-shadow:0 0 16px rgba(251,191,36,.6);}
+  .cust .alien{font-size:24px; line-height:1; filter:drop-shadow(0 0 6px rgba(139,92,246,.8));}
+  .cust .pbar{width:90%; height:6px; border-radius:4px; background:rgba(0,0,0,.45); overflow:hidden;}
+  .cust .pbar i{display:block; height:100%; background:var(--green); border-radius:4px; transition:background .3s;}
+  .cust .order{display:flex; gap:5px; align-items:flex-end; justify-content:center; flex-wrap:wrap; margin-top:3px;}
+  .cust.angry{animation:shake .4s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .cust .zap{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    font-size:30px; background:rgba(11,8,32,.75); border-radius:12px;}
+
+  /* ---------- Category tabs ---------- */
+  #tabs{display:flex; gap:6px; padding:3px 0 2px;}
+  .tab{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:0;
+    padding:5px 2px; background:var(--panel); border:1.5px solid transparent; border-radius:12px;
+    cursor:pointer; font-size:10px; font-weight:800; color:#cbb8f0; letter-spacing:.3px;
+  }
+  .tab .ic{font-size:19px; line-height:1.1;}
+  .tab.active{border-color:var(--cyan); background:rgba(34,211,238,.13); color:#fff;}
+  .tab:active{transform:scale(.96);}
+  body.easy .tab{font-size:12px; padding:7px 2px;}
+  body.easy .tab .ic{font-size:25px;}
+
+  /* ---------- Ingredient bins ---------- */
+  #bins{display:grid; grid-template-columns:repeat(6,1fr); gap:5px; padding:3px 0;}
+  .bin{
+    background:linear-gradient(#efe6d2,#d9cba8); border:2px solid #b9a87e; border-radius:8px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:2px;
+    padding:4px 2px 3px; cursor:grab; touch-action:none; min-height:60px;
+    box-shadow:inset 0 -6px 10px rgba(120,90,40,.35), 0 2px 4px rgba(0,0,0,.4);
+  }
+  .bin:active{transform:scale(.94);}
+  .bin .lbl{font-size:8px; font-weight:800; letter-spacing:.3px; color:#6b5836; text-transform:uppercase; text-align:center; line-height:1.05;}
+  .bin .tvWrap{pointer-events:none;}
+
+  /* ---------- Main: cook + counter ---------- */
+  #main{flex:1; display:flex; gap:8px; padding:2px 0 8px; min-height:200px;}
+  #grillZone{
+    width:104px; flex-shrink:0; display:flex; flex-direction:column; gap:6px;
+    background:linear-gradient(#3b2a20,#241812); border:2px solid #5b4332; border-radius:14px; padding:6px;
+  }
+  #grillZone h3{margin:0; font-size:9px; letter-spacing:2px; text-align:center; color:#f97316; text-transform:uppercase;}
+  .gslot{
+    flex:1; min-height:54px; border-radius:12px; position:relative; cursor:pointer; touch-action:none;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0 4px, transparent 4px 11px),
+      linear-gradient(#1d1d20,#0f0f12);
+    border:2px solid #3f3f46; display:flex; align-items:center; justify-content:center;
+  }
+  .gslot .ring{position:absolute; width:56px; height:56px; max-width:84%; max-height:84%;
+    border:2px dashed #52525b; border-radius:50%;}
+  .gslot .tvp{display:none; z-index:1;}
+  .gslot .tag{position:absolute; bottom:1px; left:0; right:0; text-align:center; font-size:8px; font-weight:800; letter-spacing:.5px; z-index:2;}
+  .gslot .prog{position:absolute; top:3px; left:6px; right:6px; height:3px; border-radius:2px; background:rgba(255,255,255,.12); z-index:2;}
+  .gslot .prog i{display:block; height:100%; width:0; border-radius:2px; background:#f97316;}
+  .gslot.ready{border-color:var(--green); box-shadow:0 0 10px rgba(52,211,153,.6);}
+  .gslot.burnt{border-color:#ef4444;}
+  .gslot.dropHint{border-color:var(--gold); box-shadow:0 0 12px rgba(251,191,36,.65); animation:pulse 1s infinite;}
+  @keyframes pulse{50%{box-shadow:0 0 4px rgba(251,191,36,.3);}}
+  #undoBtn{
+    height:46px; flex-shrink:0; border-radius:12px; padding:0;
+    border:2px solid rgba(34,211,238,.6); background:rgba(34,211,238,.12); color:#e6fbff;
+    font-size:13px; font-weight:800; letter-spacing:.5px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:3px;
+  }
+  #undoBtn:active{transform:scale(.94); background:rgba(34,211,238,.28);}
+  body.easy #undoBtn{height:60px; font-size:17px; border-color:#34d399; background:rgba(52,211,153,.16);}
+  #trash{
+    height:54px; border-radius:12px; border:2px dashed rgba(244,63,94,.55);
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+    background:rgba(244,63,94,.08); flex-shrink:0;
+  }
+  #trash.dropHint{border-color:var(--red); box-shadow:0 0 14px rgba(244,63,94,.6); background:rgba(244,63,94,.18);}
+
+  #counter{
+    flex:1; position:relative; border-radius:16px; overflow:hidden;
+    background:
+      radial-gradient(120% 100% at 50% 20%, rgba(255,255,255,.14) 0%, transparent 55%),
+      linear-gradient(#dcae67,#c2924e);
+    border:3px solid #8a6532;
+    box-shadow:inset 0 0 40px rgba(120,80,30,.45), 0 4px 18px rgba(0,0,0,.45);
+  }
+  #counter.dropHint{box-shadow:inset 0 0 0 3px rgba(34,211,238,.6), inset 0 0 40px rgba(120,80,30,.45);}
+  #counterHint{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:rgba(90,60,20,.5); font-weight:800; font-size:12px; letter-spacing:.5px; text-align:center;
+    pointer-events:none; padding:0 26px; line-height:1.5;
+  }
+  #ticket{
+    position:absolute; top:6px; right:6px; z-index:5; pointer-events:none;
+    display:none; flex-direction:column; align-items:center; gap:4px;
+    background:rgba(11,8,32,.82); border:1.5px dashed var(--line); border-radius:14px;
+    padding:9px 13px; min-width:118px; max-width:62%;
+  }
+  #ticket .tlbl{font-size:10px; letter-spacing:2.5px; color:#a78bfa; font-weight:800;}
+  #ticketAlien{font-size:24px; line-height:1;}
+  #ticketStack{display:flex; gap:8px; align-items:flex-end; justify-content:center; flex-wrap:wrap;}
+  body.easy #ticket{min-width:148px; padding:12px 16px; border-color:rgba(52,211,153,.7);}
+  body.easy #ticket .tlbl{font-size:12px; color:#6ee7b7;}
+  body.easy #ticketAlien{font-size:32px;}
+
+  /* ---------- Order tiles (customer card + ticket) ---------- */
+  .otile{position:relative; display:flex; flex-direction:column; align-items:center; gap:1px;}
+  .otile .omini{display:flex; flex-direction:column-reverse; align-items:center;}
+  .otile .olbl{font-size:8px; font-weight:800; color:#eadfff; text-transform:uppercase; letter-spacing:.2px;}
+  .otile .delivered{position:absolute; left:-2px; right:-2px; top:-2px; bottom:-2px;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    background:rgba(11,8,32,.55); border-radius:10px;}
+
+  /* ---------- Counter items (top view) ---------- */
+  .citem{
+    position:absolute; transform:translate(-50%,-50%); touch-action:none; cursor:grab; z-index:2;
+    filter:drop-shadow(0 4px 4px rgba(60,35,5,.45));
+  }
+  .citem.dragging{opacity:.25;}
+  .citem .badge{
+    position:absolute; left:50%; top:100%; transform:translate(-50%,0);
+    --u:.82; display:flex; flex-direction:column-reverse; align-items:center;
+    background:rgba(11,8,32,.82); border:1px solid var(--line);
+    border-radius:13px; padding:6px 10px; pointer-events:none;
+  }
+  body.easy .citem .badge{border-color:rgba(52,211,153,.6);}
+  .citem .itemLabel{
+    position:absolute; left:50%; top:100%; transform:translate(-50%,2px);
+    font-size:11px; font-weight:800; color:#fff; white-space:nowrap; pointer-events:none;
+    background:rgba(11,8,32,.82); border:1px solid var(--line); border-radius:10px; padding:3px 8px;
+  }
+  body.easy .citem .itemLabel{font-size:14px; padding:5px 11px;}
+
+  /* ---------- Drag ghost ---------- */
+  #ghost{position:fixed; z-index:60; pointer-events:none; display:none; transform:translate(-50%,-55%);
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,.6));}
+
+  /* ---------- Top-view sprites ---------- */
+  .tv{width:56px; height:56px; border-radius:50%; position:relative; pointer-events:none;}
+  .tv.sm{width:38px; height:38px;}
+  .tv-bun_bottom{background:radial-gradient(circle at 42% 38%, #f3c07e 0 45%, #e0a253 60%, #c2853c 100%);}
+  .tv-bun_top{background:
+    radial-gradient(circle at 30% 32%, #fde68a 0 7%, transparent 8%),
+    radial-gradient(circle at 58% 22%, #fde68a 0 6%, transparent 7%),
+    radial-gradient(circle at 72% 48%, #fde68a 0 7%, transparent 8%),
+    radial-gradient(circle at 40% 60%, #fde68a 0 6%, transparent 7%),
+    radial-gradient(circle at 60% 72%, #fde68a 0 6%, transparent 7%),
+    radial-gradient(circle at 45% 42%, #f6c887 0 55%, #e0a253 75%, #b97c36 100%);}
+  .tv-patty_raw{background:
+    radial-gradient(circle at 35% 35%, rgba(255,255,255,.25) 0 12%, transparent 13%),
+    radial-gradient(circle at 60% 60%, rgba(160,60,70,.5) 0 8%, transparent 9%),
+    radial-gradient(circle at 50% 50%, #ef9aa2 0 70%, #d06b75 100%);}
+  .tv-patty{background:
+    repeating-linear-gradient(45deg, rgba(0,0,0,.32) 0 5px, transparent 5px 13px),
+    radial-gradient(circle at 45% 40%, #7a4a2b 0 65%, #54311d 100%);}
+  .tv-patty.burnt{background:
+    repeating-linear-gradient(45deg, rgba(0,0,0,.5) 0 5px, transparent 5px 13px),
+    radial-gradient(circle at 45% 40%, #2c2420 0 65%, #17120f 100%);}
+  .tv-cheese{border-radius:8px; transform:rotate(8deg); background:linear-gradient(135deg,#ffd75e,#f0b429);}
+  .tv-lettuce{border-radius:46% 54% 52% 48%/52% 46% 54% 48%;
+    background:
+      radial-gradient(circle at 25% 30%, #9ae87a 0 18%, transparent 19%),
+      radial-gradient(circle at 68% 28%, #8fe06a 0 16%, transparent 17%),
+      radial-gradient(circle at 30% 70%, #8fe06a 0 17%, transparent 18%),
+      radial-gradient(circle at 70% 68%, #9ae87a 0 15%, transparent 16%),
+      radial-gradient(circle at 50% 50%, #7ed957 0 70%, #58b53a 100%);}
+  .tv-tomato{background:
+    radial-gradient(circle at 38% 32%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 62% 36%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 35% 62%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 64% 64%, #ffb3ac 0 6%, transparent 7%),
+    radial-gradient(circle at 50% 50%, #ff8a80 0 32%, #e8453c 45%, #c62e26 100%);}
+  .tv-onion{background:repeating-radial-gradient(circle at 50% 50%, #f3e8fa 0 11%, #cdb0e3 11% 18%);}
+  .tv-pickle{background:radial-gradient(circle at 50% 50%, #8cc63f 0 28%, #5a9e3d 45%, #3f7a28 100%);
+    box-shadow:inset 0 0 0 3px rgba(40,80,20,.4);}
+  .tvWrap{position:relative;}
+  .tvOverlay{position:absolute; inset:6%; pointer-events:none;}
+  .tvOverlay svg{width:100%; height:100%; overflow:visible;}
+  .tvStack{position:relative; width:64px; height:64px; pointer-events:none;}
+  .tvAbs{position:absolute; inset:auto; left:50%; top:50%;}
+
+  .squirtFx{position:absolute; z-index:8; pointer-events:none; transform:translate(-50%,-120%) rotate(135deg);
+    animation:squeeze .6s ease-out forwards;}
+  @keyframes squeeze{
+    0%{opacity:0; transform:translate(-50%,-120%) rotate(125deg) scale(.6);}
+    30%{opacity:1; transform:translate(-50%,-120%) rotate(140deg) scale(1.05);}
+    100%{opacity:0; transform:translate(-50%,-120%) rotate(135deg) scale(1);}
+  }
+  .puffFx{position:absolute; z-index:8; pointer-events:none; transform:translate(-50%,-50%);
+    font-size:22px; animation:puff .6s ease-out forwards;}
+  @keyframes puff{0%{opacity:0; transform:translate(-50%,-30%) scale(.5);}40%{opacity:1;}100%{opacity:0; transform:translate(-50%,-90%) scale(1.2);}}
+  .spreadFx{animation:spreadPulse .5s ease-out;}
+  @keyframes spreadPulse{0%{transform:translate(-50%,-50%) scale(.6)}60%{transform:translate(-50%,-50%) scale(1.15)}100%{transform:translate(-50%,-50%) scale(1)}}
+
+  /* ---------- Toast ---------- */
+  #toast{
+    position:fixed; top:11%; left:50%; transform:translateX(-50%); z-index:30;
+    background:rgba(11,8,32,.92); border:1px solid var(--line); border-radius:999px;
+    padding:7px 16px; font-weight:700; font-size:14px; white-space:nowrap;
+    opacity:0; transition:opacity .2s; pointer-events:none;
+  }
+
+  /* ---------- Overlay ---------- */
+  #overlay{
+    position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center;
+    background:rgba(6,4,20,.86); backdrop-filter:blur(6px); padding:20px;
+  }
+  #overlay.hidden{display:none;}
+  .card{
+    max-width:460px; width:100%; text-align:center; background:rgba(26,16,64,.85);
+    border:1px solid var(--line); border-radius:24px; padding:24px 22px;
+    box-shadow:0 0 60px rgba(139,92,246,.25); max-height:92dvh; overflow-y:auto;
+  }
+  .card h1{margin:0 0 4px; font-size:28px;
+    background:linear-gradient(90deg,#22d3ee,#8b5cf6,#f472b6); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .card h2{margin:0 0 12px; font-size:22px;}
+  .card p{font-size:14px; line-height:1.55; color:#cfc8ee; margin:10px 0;}
+  .card .how{text-align:left; font-size:13px; margin:12px auto; max-width:380px;}
+  .card .how div{margin:7px 0; display:flex; gap:8px; align-items:flex-start;}
+  .card a{color:var(--cyan); font-weight:700;}
+  .bigbtn{
+    background:linear-gradient(135deg,#22d3ee,#8b5cf6); color:#fff; border:none; border-radius:999px;
+    font-size:18px; font-weight:800; padding:13px 44px; cursor:pointer; letter-spacing:.5px; margin-top:8px;
+    box-shadow:0 6px 24px rgba(139,92,246,.5);
+  }
+  .bigbtn:active{transform:scale(.95);}
+  .bigbtn.easy{background:linear-gradient(135deg,#34d399,#f472b6); box-shadow:0 6px 24px rgba(244,114,182,.5);}
+  .btnRow{display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:6px;}
+  .hint{font-size:12px; opacity:.72; margin-top:8px;}
+  .stat{font-size:16px; margin:6px 0;}
+  .stat b{color:var(--gold);}
+
+  /* ---------- Side-view burger layers (order tiles & badges) ---------- */
+  .layer{position:relative; flex-shrink:0;}
+  .layer.bun_top{
+    width:calc(96px*var(--u)); height:calc(32px*var(--u));
+    border-radius:calc(48px*var(--u)) calc(48px*var(--u)) calc(8px*var(--u)) calc(8px*var(--u));
+    background:
+      radial-gradient(circle at 28% 38%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      radial-gradient(circle at 55% 25%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      radial-gradient(circle at 75% 45%, #fde68a 0 calc(2.5px*var(--u)), transparent calc(3px*var(--u))),
+      linear-gradient(#f0a85a,#d98c3f);
+  }
+  .layer.bun_bottom{width:calc(96px*var(--u)); height:calc(18px*var(--u));
+    border-radius:calc(6px*var(--u)) calc(6px*var(--u)) calc(12px*var(--u)) calc(12px*var(--u));
+    background:linear-gradient(#e8a050,#c87f35);}
+  .layer.patty{width:calc(90px*var(--u)); height:calc(16px*var(--u)); border-radius:calc(8px*var(--u));
+    background:linear-gradient(#7a4a2b,#54311d); margin:calc(-2px*var(--u)) 0;}
+  .layer.patty_raw{width:calc(90px*var(--u)); height:calc(16px*var(--u)); border-radius:calc(8px*var(--u));
+    background:linear-gradient(#ef9aa2,#d06b75); margin:calc(-2px*var(--u)) 0;}
+  .layer.cheese{width:calc(100px*var(--u)); height:calc(10px*var(--u)); border-radius:calc(3px*var(--u));
+    background:linear-gradient(#ffd24d,#f5b91e); margin:calc(-2px*var(--u)) 0;}
+  .layer.lettuce{width:calc(102px*var(--u)); height:calc(10px*var(--u)); border-radius:calc(5px*var(--u));
+    background:linear-gradient(#7ed957,#5bbf3e); margin:calc(-2px*var(--u)) 0;}
+  .layer.tomato{width:calc(86px*var(--u)); height:calc(11px*var(--u)); border-radius:calc(6px*var(--u));
+    background:linear-gradient(#ef5350,#d3302c); margin:calc(-2px*var(--u)) 0;}
+  .layer.onion{width:calc(92px*var(--u)); height:calc(9px*var(--u)); border-radius:calc(5px*var(--u));
+    background:repeating-linear-gradient(90deg,#ead9f5 0 calc(10px*var(--u)),#cdb0e3 calc(10px*var(--u)) calc(14px*var(--u)));
+    margin:calc(-2px*var(--u)) 0;}
+  .layer.pickle{width:calc(82px*var(--u)); height:calc(9px*var(--u)); border-radius:calc(5px*var(--u));
+    background:repeating-linear-gradient(90deg,#5a9e3d 0 calc(14px*var(--u)),#447a2c calc(14px*var(--u)) calc(18px*var(--u)));
+    margin:calc(-2px*var(--u)) 0;}
+  .layer.sauceLayer{width:calc(94px*var(--u)); height:calc(13px*var(--u)); margin:calc(-4px*var(--u)) 0; z-index:1;}
+  .layer.sauceLayer svg{width:100%; height:100%; display:block; overflow:visible;}
+
+  @media (max-width:520px){
+    #customers{min-height:104px;}
+    .cust .alien{font-size:20px;}
+    #grillZone{width:90px;}
+    .tab{font-size:9px;}
+  }
+</style>
+</head>
+<body>
+<div id="stars"></div>
+
+<div id="game">
+  <header>
+    <div class="pill"><span class="lbl">Day</span><span id="dayN">1</span></div>
+    <div class="pill">💰 <span id="coinsN">0</span></div>
+    <div class="pill" id="livesP">❤️❤️❤️</div>
+    <button id="muteBtn">🔊</button>
+  </header>
+
+  <div id="customers"></div>
+
+  <div id="tabs"></div>
+  <div id="bins"></div>
+
+  <div id="main">
+    <div id="grillZone">
+      <h3>🔥 Cook</h3>
+      <div class="gslot" data-i="0"><div class="ring"></div><div class="tvp"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <div class="gslot" data-i="1"><div class="ring"></div><div class="tvp"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <div class="gslot" data-i="2"><div class="ring"></div><div class="tvp"></div><div class="prog"><i></i></div><div class="tag"></div></div>
+      <button id="undoBtn" title="Remove the last thing you added">↩ Undo</button>
+      <div id="trash">🗑️</div>
+    </div>
+    <div id="counter">
+      <div id="counterHint">DRAG FOOD HERE — STACK BURGERS, ADD FLAVORS,<br>AND PARK ANYTHING (NOTHING burns on the counter)</div>
+      <div id="ticket">
+        <span class="tlbl">ORDER</span>
+        <span id="ticketAlien"></span>
+        <div id="ticketStack"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="ghost"></div>
+<div id="toast"></div>
+
+<div id="overlay">
+  <div class="card" id="ovCard"></div>
+</div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const eqArr=(a,b)=>a.length===b.length&&a.every((x,i)=>x===b[i]);
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const rand=a=>a[Math.floor(Math.random()*a.length)];
+
+/* ================= Data ================= */
+const SAUCES={ketchup:'#e63946', mustard:'#eab308', cosmic:'#c026d3'};
+const POWDERS={pf_cheese:'#f3c33f', pf_sourcream:'#e2ecc8', pf_bbq:'#c75a32'};
+const POWDER_FLAVOR={pf_cheese:'cheese', pf_sourcream:'sourcream', pf_bbq:'bbq'};
+const FLAVOR_LABEL={cheese:'Cheese', sourcream:'Sour Cream', bbq:'BBQ'};
+const DRINKS={soda:'#5b3a1a', oj:'#ff9f1c', water:'#a7defb'};
+const COOK={patty_raw:'patty', fries_raw:'fries', kernels:'popcorn'};
+const isSauce=t=>t in SAUCES, isPowder=t=>t in POWDERS, isDrink=t=>t in DRINKS, isCookable=t=>t in COOK;
+
+const ING={
+  bun_bottom:'Bun', bun_top:'Top Bun', patty:'Patty', patty_raw:'Raw Patty',
+  cheese:'Cheese', lettuce:'Lettuce', tomato:'Tomato', onion:'Onion', pickle:'Pickle',
+  ketchup:'Ketchup', mustard:'Mustard', cosmic:'Cosmic',
+  fries_raw:'Raw Fries', kernels:'Kernels',
+  pf_cheese:'Cheese', pf_sourcream:'Sour Cream', pf_bbq:'BBQ',
+  soda:'Soda', oj:'Orange Juice', water:'Water',
+};
+const MIDDLE=['patty','cheese','lettuce','tomato','onion','pickle','ketchup','mustard','cosmic'];
+const ALIENS=['👽','🤖','👾','🐙','🦑','🌚','🦠','🐸'];
+const COOK_TIME=5, READY_TIME=7;
+const MERGE_R=46;
+
+const TABS=[
+  {id:'burger', icon:'🍔', label:'Burger', bins:['patty_raw','bun_bottom','bun_top','cheese','lettuce','tomato','onion','pickle','ketchup','mustard','cosmic']},
+  {id:'fries',  icon:'🍟', label:'Fries',  bins:['fries_raw']},
+  {id:'popcorn',icon:'🍿', label:'Popcorn',bins:['kernels','pf_cheese','pf_sourcream','pf_bbq']},
+  {id:'drinks', icon:'🥤', label:'Drinks', bins:['soda','oj','water']},
+];
+
+/* ================= State ================= */
+const S={
+  phase:'menu', day:1, coins:0, lives:3, best:+(localStorage.getItem('gb_best')||0),
+  items:[], nextIid:1, active:null, tab:'burger',
+  grill:[null,null,null], customers:[], selected:null,
+  nextCid:1, spawnT:1, daySpawned:0, dayResolved:0, dayEarned:0, time:0, muted:false, easy:false,
+};
+const dayTotal=()=>S.easy?3:4+S.day;
+const maxCust=()=>S.easy?1:(S.day>=4?3:(S.day>=2?2:1));
+
+/* ================= Audio ================= */
+let AC=null;
+function beep(f,d,type='square',v=.12){
+  if(S.muted)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended')AC.resume();
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);
+    o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+const sTap=()=>beep(420,.06,'square',.07);
+const sPop=()=>beep(660,.09,'triangle',.14);
+const sSquirt=()=>{beep(300,.1,'sawtooth',.08);setTimeout(()=>beep(520,.12,'triangle',.1),70);};
+const sGood=()=>{beep(523,.12,'triangle',.15);setTimeout(()=>beep(659,.12,'triangle',.15),90);setTimeout(()=>beep(784,.2,'triangle',.15),180);};
+const sBad=()=>{beep(180,.25,'sawtooth',.12);setTimeout(()=>beep(140,.3,'sawtooth',.12),120);};
+const sBell=()=>beep(1047,.25,'sine',.15);
+
+/* ================= Stars ================= */
+(function(){
+  const wrap=$('#stars');
+  for(let i=0;i<70;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*2.2+.6;
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;animation-delay:${Math.random()*3}s;animation-duration:${2+Math.random()*3}s`;
+    wrap.appendChild(s);
+  }
+})();
+
+/* ================= Side-view layers (order tiles & badges) ================= */
+const SQUIGGLE='M3 9 Q 9 1 15 9 T 27 9 T 39 9 T 51 9 T 63 9 T 75 9 T 87 9 T 97 9';
+function layerEl(type){
+  const d=document.createElement('div');
+  if(SAUCES[type]){
+    d.className='layer sauceLayer '+type;
+    d.innerHTML=`<svg viewBox="0 0 100 12" preserveAspectRatio="none"><path d="${SQUIGGLE}" fill="none" stroke="${SAUCES[type]}" stroke-width="5" stroke-linecap="round"/></svg>`;
+  }else{
+    d.className='layer '+type;
+  }
+  return d;
+}
+function renderMini(container,layers){
+  container.innerHTML='';
+  layers.forEach(t=>container.appendChild(layerEl(t)));
+}
+
+/* ================= Top-view sprites ================= */
+function svgWrap(html,w,h){
+  const el=document.createElement('div'); el.className='tvWrap';
+  el.style.width=w+'px'; el.style.height=(h||w)+'px'; el.innerHTML=html; return el;
+}
+function bottleSvg(color,w,h){
+  return `<svg width="${w}" height="${h}" viewBox="0 0 34 48"><path d="M17 0 L22 9 L12 9 Z" fill="${color}"/>
+    <rect x="7" y="9" width="20" height="37" rx="9" fill="${color}" opacity=".92"/></svg>`;
+}
+function sauceSquiggleSvg(color){
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+    <path d="M15 30 Q 35 12 50 30 T 85 35 M18 55 Q 38 40 55 56 T 84 60 M20 78 Q 40 64 56 79 T 82 80"
+      fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round"/></svg>`;
+}
+function friesEl(s,state){ // state: raw|done|burnt
+  const fc=state==='done'?'#f4c63f':state==='burnt'?'#6b5126':'#ead9a0';
+  const edge=state==='done'?'#caa12f':state==='burnt'?'#3f2f15':'#cbbd8a';
+  const html=`<svg viewBox="0 0 64 64" width="${s}" height="${s}">
+    <g stroke="${edge}" stroke-width="1.2">
+      <rect x="21" y="10" width="6" height="34" rx="2.5" fill="${fc}"/>
+      <rect x="29" y="6"  width="6" height="38" rx="2.5" fill="${fc}"/>
+      <rect x="37" y="11" width="6" height="33" rx="2.5" fill="${fc}"/>
+      <rect x="25" y="12" width="6" height="32" rx="2.5" fill="${fc}" transform="rotate(-9 28 28)"/>
+      <rect x="34" y="12" width="6" height="32" rx="2.5" fill="${fc}" transform="rotate(9 37 28)"/>
+    </g>
+    <path d="M15 33 L49 33 L45 61 L19 61 Z" fill="#e8413f"/>
+    <path d="M15 33 L49 33 L48 39 L16 39 Z" fill="#c92f2f"/>
+    <rect x="26" y="40" width="4" height="19" rx="1.5" fill="#fff" opacity=".9"/>
+    <rect x="34" y="40" width="4" height="19" rx="1.5" fill="#fff" opacity=".9"/>
+  </svg>`;
+  return svgWrap(html,s);
+}
+function kernelEl(s){
+  const html=`<svg viewBox="0 0 40 40" width="${s}" height="${s}">
+    <g fill="#c9892f" stroke="#9c6a22" stroke-width=".6">
+      <circle cx="14" cy="24" r="4"/><circle cx="20" cy="27" r="4.2"/><circle cx="26" cy="24" r="4"/>
+      <circle cx="17" cy="20" r="3.6"/><circle cx="23" cy="20" r="3.6"/><circle cx="20" cy="16" r="3.4"/>
+    </g></svg>`;
+  return svgWrap(html,s);
+}
+function popcornEl(flavor,s){
+  const tint={cheese:'#f3c33f',sourcream:'#e6eecb',bbq:'#cf6a3c'}[flavor]||'#fff4e0';
+  const edge={cheese:'#d4a52f',sourcream:'#c6cfa8',bbq:'#a85228'}[flavor]||'#e6d8be';
+  const html=`<svg viewBox="0 0 64 64" width="${s}" height="${s}">
+    <g fill="${tint}" stroke="${edge}" stroke-width=".8">
+      <circle cx="22" cy="20" r="7"/><circle cx="31" cy="13" r="8"/><circle cx="41" cy="19" r="7"/>
+      <circle cx="26" cy="27" r="6"/><circle cx="37" cy="27" r="6.5"/><circle cx="44" cy="25" r="5.5"/>
+      <circle cx="19" cy="27" r="5"/>
+    </g>
+    <path d="M16 28 L48 28 L44 61 L20 61 Z" fill="#fff"/>
+    <g fill="#e8413f">
+      <path d="M20 28 L26 28 L23 61 L18.5 61 Z"/>
+      <path d="M30 28 L36 28 L34 61 L29.5 61 Z"/>
+      <path d="M40 28 L46 28 L44 61 L40 61 Z"/>
+    </g></svg>`;
+  return svgWrap(html,s);
+}
+function drinkEl(flavor,s){
+  const liq=DRINKS[flavor]||'#888';
+  const html=`<svg viewBox="0 0 64 64" width="${s}" height="${s}">
+    <path d="M20 20 L44 20 L40 60 L24 60 Z" fill="#eef3f6"/>
+    <path d="M22 24 L42 24 L39 57 L25 57 Z" fill="${liq}" opacity=".95"/>
+    <ellipse cx="32" cy="20" rx="12" ry="3" fill="#dfe6ea"/>
+    <rect x="17" y="13" width="30" height="8" rx="3" fill="#cdd5db"/>
+    <rect x="17" y="13" width="30" height="3.5" rx="2" fill="#b7c0c7"/>
+    <rect x="33" y="2" width="5" height="18" rx="2.5" fill="#e8413f" transform="rotate(14 35 11)"/>
+  </svg>`;
+  return svgWrap(html,s);
+}
+function powderEl(type,s){
+  const col=POWDERS[type]||'#ccc';
+  const html=`<svg viewBox="0 0 48 48" width="${s}" height="${s}">
+    <rect x="15" y="18" width="18" height="26" rx="4" fill="${col}"/>
+    <rect x="15" y="12" width="18" height="8" rx="3" fill="#d9d9d9"/>
+    <g fill="#7a7a7a"><circle cx="20" cy="15" r="1.1"/><circle cx="24" cy="15" r="1.1"/><circle cx="28" cy="15" r="1.1"/></g>
+    <g fill="${col}"><circle cx="10" cy="40" r="1.3"/><circle cx="37" cy="42" r="1.3"/><circle cx="13" cy="45" r="1.1"/></g>
+  </svg>`;
+  return svgWrap(html,s);
+}
+// single burger ingredient (top view)
+function tvEl(type,small){
+  const w=document.createElement('div'); w.className='tvWrap';
+  if(SAUCES[type]){ w.innerHTML=bottleSvg(SAUCES[type],small?22:26,small?38:44); return w; }
+  const d=document.createElement('div'); d.className='tv '+(small?'sm ':'')+'tv-'+type;
+  w.appendChild(d); return w;
+}
+const TV_SCALE={bun_bottom:.98,bun_top:.95,patty:.86,patty_raw:.86,cheese:.96,lettuce:1.06,tomato:.82,onion:.9,pickle:.74};
+// burger stack from above: each layer visible, lower layers peeking out
+function stackTvEl(layers,base){
+  base=base||86;
+  const step=base/14;
+  const wrap=document.createElement('div'); wrap.className='tvStack';
+  wrap.style.width=base+'px'; wrap.style.height=base+'px';
+  let lift=0, lastSize=base, sauceN=0;
+  layers.forEach((t,i)=>{
+    if(SAUCES[t]){
+      const o=document.createElement('div'); o.className='tvOverlay tvAbs';
+      const sz=lastSize*.82;
+      o.style.cssText=`width:${sz}px;height:${sz}px;z-index:${i+1};transform:translate(-50%,-50%) translateY(${-lift}px) rotate(${sauceN*38}deg);`;
+      o.innerHTML=sauceSquiggleSvg(SAUCES[t]);
+      wrap.appendChild(o); sauceN++; lift+=step*.25; return;
+    }
+    const d=document.createElement('div'); d.className='tv tv-'+t+' tvAbs';
+    const sz=base*(TV_SCALE[t]||.9); lastSize=sz;
+    d.style.cssText=`width:${sz}px;height:${sz}px;z-index:${i+1};transform:translate(-50%,-50%) translateY(${-lift}px)${t==='cheese'?' rotate(8deg)':''};box-shadow:0 3px 3px rgba(50,25,5,.4);`;
+    wrap.appendChild(d); lift+=step;
+  });
+  return wrap;
+}
+// product sprite (fries/popcorn/drink) at counter scale
+function productSprite(spec,s){
+  if(spec.kind==='fries') return friesEl(s,'done');
+  if(spec.kind==='popcorn') return popcornEl(spec.flavor,s);
+  if(spec.kind==='drink') return drinkEl(spec.flavor,s);
+  return null;
+}
+function productCounterEl(it){
+  if(it.kind==='burger') return stackTvEl(it.layers,86);
+  return productSprite(it, it.kind==='fries'?78:it.kind==='drink'?82:80);
+}
+function binSprite(type){
+  if(isDrink(type)) return drinkEl(type,34);
+  if(isPowder(type)) return powderEl(type,34);
+  if(type==='fries_raw') return friesEl(34,'raw');
+  if(type==='kernels') return kernelEl(34);
+  return tvEl(type,true);
+}
+function binGhost(type){
+  if(isDrink(type)) return drinkEl(type,60);
+  if(isPowder(type)) return powderEl(type,54);
+  if(type==='fries_raw') return friesEl(58,'raw');
+  if(type==='kernels') return kernelEl(54);
+  return tvEl(type);
+}
+
+/* ================= Toast ================= */
+let toastT=null;
+function toast(msg,ms=1500){
+  const t=$('#toast');t.textContent=msg;t.style.opacity=1;
+  clearTimeout(toastT);toastT=setTimeout(()=>t.style.opacity=0,ms);
+}
+function lerpColor(a,b,t){
+  const pa=a.match(/\w\w/g).map(x=>parseInt(x,16)),pb=b.match(/\w\w/g).map(x=>parseInt(x,16));
+  return '#'+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+
+/* ================= Orders ================= */
+function genBurger(){
+  const base=Math.min(2+Math.floor((S.day-1)/2),5);
+  const n=Math.max(1,base-(Math.random()<.4?1:0));
+  const mid=['patty'];
+  while(mid.length<n){const p=rand(MIDDLE); if(p!=='patty'||Math.random()<.25)mid.push(p);}
+  for(let i=mid.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mid[i],mid[j]]=[mid[j],mid[i]];}
+  return {kind:'burger',layers:['bun_bottom',...mid,'bun_top']};
+}
+const genFries=()=>({kind:'fries'});
+const genPopcorn=()=>({kind:'popcorn',flavor:rand(['cheese','sourcream','bbq'])});
+const genDrink=()=>({kind:'drink',flavor:rand(['soda','oj','water'])});
+
+function makeOrder(){
+  if(S.easy){
+    const r=Math.random();
+    if(r<.5) return [{kind:'burger',layers:['bun_bottom','patty',...(Math.random()<.5?[rand(['cheese','lettuce','tomato','ketchup'])]:[]),'bun_top']}];
+    if(r<.68) return [genFries()];
+    if(r<.84) return [genDrink()];
+    return [genPopcorn()];
+  }
+  const pool=[genBurger,genFries,genPopcorn,genDrink];
+  const maxN=Math.min(3,1+Math.floor(S.day/2));
+  const n=1+Math.floor(Math.random()*maxN);
+  const products=[Math.random()<.6?genBurger():rand(pool)()];
+  while(products.length<n)products.push(rand(pool)());
+  return products;
+}
+function orderWeight(order){return order.reduce((s,p)=>s+(p.kind==='burger'?p.layers.length:2),0);}
+function productPay(p){
+  if(p.kind==='burger')return 4+(p.layers.length-2)*2;
+  if(p.kind==='popcorn')return 5;
+  if(p.kind==='fries')return 4;
+  return 3;
+}
+function orderPay(order){return order.reduce((s,p)=>s+productPay(p),0);}
+
+function matchProduct(item,spec){
+  if(item.kind!==spec.kind)return false;
+  if(spec.kind==='burger')return eqArr(item.layers,spec.layers);
+  if(spec.kind==='popcorn')return !!item.flavor&&item.flavor===spec.flavor;
+  if(spec.kind==='drink')return item.flavor===spec.flavor;
+  return true; // fries
+}
+function productLabel(spec){
+  if(spec.kind==='fries')return 'Fries';
+  if(spec.kind==='popcorn')return FLAVOR_LABEL[spec.flavor]||'Popcorn';
+  if(spec.kind==='drink')return ING[spec.flavor];
+  return '';
+}
+
+/* ---- order tile (customer card + ticket) ---- */
+function orderTileEl(spec,big){
+  const tile=document.createElement('div'); tile.className='otile';
+  if(spec.kind==='burger'){
+    const col=document.createElement('div'); col.className='omini';
+    col.style.setProperty('--u', big?(S.easy?'.62':'.52'):(S.easy?'.5':'.4'));
+    spec.layers.forEach(t=>col.appendChild(layerEl(t)));
+    tile.appendChild(col);
+  }else{
+    const s=big?(S.easy?60:50):(S.easy?44:34);
+    tile.appendChild(productSprite(spec,s));
+    const lab=document.createElement('div'); lab.className='olbl'; lab.textContent=productLabel(spec);
+    tile.appendChild(lab);
+  }
+  return tile;
+}
+function renderOrderRow(container,c,big){
+  container.innerHTML='';
+  c.order.forEach((spec,i)=>{
+    const tile=orderTileEl(spec,big);
+    if(c.delivered[i]){const d=document.createElement('div');d.className='delivered';d.textContent='✅';tile.appendChild(d);}
+    container.appendChild(tile);
+  });
+}
+
+/* ================= Customers ================= */
+function spawnCustomer(){
+  const order=makeOrder();
+  const dur=Math.max(30,(60-S.day*3))+orderWeight(order)*3;
+  const c={id:S.nextCid++, alien:rand(ALIENS), order, delivered:order.map(()=>false), patience:dur, maxPatience:dur, el:null};
+  const el=document.createElement('div'); el.className='cust';
+  el.innerHTML=`<div class="alien">${c.alien}</div>
+    <div class="pbar"><i style="width:100%"></i></div>
+    <div class="order"></div><div class="zap"></div>`;
+  el.addEventListener('pointerdown',()=>{selectCustomer(c.id);sTap();});
+  c.el=el;
+  $('#customers').appendChild(el);
+  S.customers.push(c);
+  renderOrderRow(el.querySelector('.order'),c,false);
+  S.daySpawned++;
+  if(!S.selected)selectCustomer(c.id);
+}
+function selectCustomer(id){
+  S.selected=id;
+  S.customers.forEach(c=>c.el.classList.toggle('selected',c.id===id));
+  renderTicket();
+}
+function renderTicket(){
+  const c=S.customers.find(x=>x.id===S.selected);
+  const t=$('#ticket');
+  if(!c){t.style.display='none';return;}
+  t.style.display='flex';
+  $('#ticketAlien').textContent=c.alien;
+  renderOrderRow($('#ticketStack'),c,true);
+}
+function removeCustomer(c,emoji){
+  const z=c.el.querySelector('.zap'); z.textContent=emoji; z.style.display='flex';
+  c.dead=true; setTimeout(()=>{c.el.remove();},650);
+  S.customers=S.customers.filter(x=>x!==c);
+  if(S.selected===c.id)selectCustomer(S.customers[0]?S.customers[0].id:null);
+  S.dayResolved++;
+  renderTicket();
+}
+
+/* ================= Counter items ================= */
+const counter=$('#counter');
+function clampPos(x,y){
+  const r=counter.getBoundingClientRect();
+  return [Math.min(Math.max(x,54),r.width-54), Math.min(Math.max(y,54),r.height-96)];
+}
+function addProduct(spec,x,y,fx){
+  [x,y]=clampPos(x,y);
+  const it={id:S.nextIid++, x, y, el:null, kind:spec.kind, layers:spec.layers?[...spec.layers]:[], flavor:spec.flavor||null};
+  const el=document.createElement('div'); el.className='citem';
+  el.style.left=x+'px'; el.style.top=y+'px';
+  el.addEventListener('pointerdown',e=>{e.preventDefault();startDrag(e,{kind:'item',item:it});});
+  it.el=el; counter.appendChild(el);
+  S.items.push(it); S.active=it;
+  renderItem(it,fx); updateHint();
+  return it;
+}
+function renderItem(it,fx){
+  it.el.innerHTML='';
+  const tv=productCounterEl(it);
+  if(fx)tv.classList.add('spreadFx');
+  it.el.appendChild(tv);
+  if(it.kind==='burger'){
+    if(it.layers.length>1){const b=document.createElement('div');b.className='badge';renderMini(b,it.layers);it.el.appendChild(b);}
+  }else{
+    const lab=document.createElement('div'); lab.className='itemLabel';
+    lab.textContent = it.kind==='fries'?'Fries' : it.kind==='drink'?ING[it.flavor] : (it.flavor?FLAVOR_LABEL[it.flavor]:'＋ Add flavor');
+    it.el.appendChild(lab);
+  }
+}
+function moveItem(it,x,y){
+  [x,y]=clampPos(x,y); it.x=x; it.y=y; it.el.style.left=x+'px'; it.el.style.top=y+'px';
+}
+function removeItem(it){
+  it.el.remove(); S.items=S.items.filter(x=>x!==it);
+  if(S.active===it)S.active=null;
+  updateHint();
+}
+function itemAt(x,y,except,kind){
+  const R=S.easy?MERGE_R*1.7:MERGE_R*1.35;
+  let best=null,bd=1e9;
+  for(const it of S.items){
+    if(it===except)continue;
+    if(kind&&it.kind!==kind)continue;
+    const d=Math.hypot(it.x-x,it.y-y);
+    if(d<R&&d<bd){bd=d;best=it;}
+  }
+  return best;
+}
+function updateHint(){$('#counterHint').style.display=S.items.length?'none':'flex';}
+function popLayer(it){
+  if(it.kind==='burger'){ it.layers.pop(); if(!it.layers.length)removeItem(it); else renderItem(it); }
+  else if(it.kind==='popcorn'&&it.flavor){ it.flavor=null; renderItem(it); }
+  else removeItem(it);
+  sTap();
+}
+function undoLast(){
+  let it=(S.active&&S.items.includes(S.active))?S.active:S.items[S.items.length-1];
+  if(!it){toast('🤷 Nothing to undo');return;}
+  it.el.style.transition='filter .15s';
+  it.el.style.filter='drop-shadow(0 0 8px var(--cyan)) drop-shadow(0 4px 4px rgba(60,35,5,.45))';
+  setTimeout(()=>{if(it.el)it.el.style.filter='';},220);
+  popLayer(it);
+}
+$('#undoBtn').addEventListener('pointerdown',e=>{e.preventDefault();if(S.phase!=='play'||drag)return;undoLast();});
+
+function squirtFxAt(x,y,color){
+  const fx=document.createElement('div'); fx.className='squirtFx';
+  fx.style.left=x+'px'; fx.style.top=y+'px'; fx.innerHTML=bottleSvg(color,30,48);
+  counter.appendChild(fx); setTimeout(()=>fx.remove(),650); sSquirt();
+}
+function puffFxAt(x,y){
+  const fx=document.createElement('div'); fx.className='puffFx';
+  fx.style.left=x+'px'; fx.style.top=y+'px'; fx.textContent='✨';
+  counter.appendChild(fx); setTimeout(()=>fx.remove(),650);
+}
+function applySauce(target,type){
+  if(target.layers.length>=12){toast('🍔 Whoa, too tall!');return;}
+  target.layers.push(type); S.active=target;
+  squirtFxAt(target.x,target.y-30,SAUCES[type]);
+  renderItem(target,true);
+}
+function applyPowder(target,powderType){
+  target.flavor=POWDER_FLAVOR[powderType]; S.active=target;
+  puffFxAt(target.x,target.y-26); sSquirt();
+  renderItem(target,true);
+}
+
+/* ================= Tabs & bins ================= */
+function buildTabs(){
+  const wrap=$('#tabs'); wrap.innerHTML='';
+  TABS.forEach(tb=>{
+    const b=document.createElement('div'); b.className='tab'+(tb.id===S.tab?' active':'');
+    b.dataset.id=tb.id;
+    b.innerHTML=`<span class="ic">${tb.icon}</span><span>${tb.label}</span>`;
+    b.addEventListener('pointerdown',e=>{e.preventDefault();selectTab(tb.id);sTap();});
+    wrap.appendChild(b);
+  });
+}
+function selectTab(id){
+  S.tab=id;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.id===id));
+  renderBins();
+}
+function renderBins(){
+  const bins=$('#bins'); bins.innerHTML='';
+  const tab=TABS.find(t=>t.id===S.tab);
+  tab.bins.forEach(type=>{
+    const b=document.createElement('div'); b.className='bin';
+    b.appendChild(binSprite(type));
+    const l=document.createElement('span'); l.className='lbl'; l.textContent=ING[type];
+    b.appendChild(l);
+    b.addEventListener('pointerdown',e=>{e.preventDefault();startDrag(e,{kind:'bin',type});});
+    bins.appendChild(b);
+  });
+}
+
+/* ================= Drag & drop ================= */
+let drag=null;
+const ghost=$('#ghost');
+const slotEls=[...document.querySelectorAll('.gslot')];
+function servable(it){
+  if(it.kind==='burger')return it.layers.length>=3;
+  if(it.kind==='popcorn')return !!it.flavor;
+  return true;
+}
+function startDrag(e,src){
+  if(drag||S.phase!=='play')return;
+  drag={...src,startX:e.clientX,startY:e.clientY,moved:false,pid:e.pointerId};
+  ghost.innerHTML='';
+  let g;
+  if(src.kind==='bin')g=binGhost(src.type);
+  else if(src.kind==='slot')g=productCounterEl(src.product);
+  else g=productCounterEl(src.item);
+  ghost.appendChild(g); ghost.style.display='block'; moveGhost(e);
+  try{e.target.setPointerCapture(e.pointerId);}catch(_){}
+  if(src.kind==='item'){src.item.el.classList.add('dragging');S.active=src.item;}
+  const raw=(src.kind==='bin'&&isCookable(src.type));
+  if(raw)slotEls.forEach((el,i)=>{if(!S.grill[i])el.classList.add('dropHint');});
+  counter.classList.add('dropHint');
+  $('#trash').classList.add('dropHint');
+  if(src.kind==='item'&&servable(src.item))S.customers.forEach(c=>c.el.classList.add('dropHint'));
+}
+function moveGhost(e){ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';}
+function clearDragUI(d){
+  ghost.style.display='none';
+  counter.classList.remove('dropHint');
+  $('#trash').classList.remove('dropHint');
+  slotEls.forEach(el=>el.classList.remove('dropHint'));
+  S.customers.forEach(c=>c.el.classList.remove('dropHint'));
+  if(d&&d.kind==='item'&&d.item.el)d.item.el.classList.remove('dragging');
+}
+function inRect(x,y,el,pad=0){const r=el.getBoundingClientRect();return x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;}
+function cancelDrag(){
+  if(!drag)return; const d=drag; drag=null;
+  if(d.kind==='slot')S.grill[d.fromSlot]=d.slotState;
+  clearDragUI(d);
+}
+window.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.pid)return;
+  if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>8)drag.moved=true;
+  moveGhost(e);
+});
+window.addEventListener('pointercancel',cancelDrag);
+window.addEventListener('pointerup',e=>{
+  if(!drag||e.pointerId!==drag.pid)return;
+  const d=drag; drag=null; clearDragUI(d);
+  const x=e.clientX,y=e.clientY;
+  const restoreSlot=()=>{if(d.kind==='slot')S.grill[d.fromSlot]=d.slotState;};
+
+  if(!d.moved){ // taps
+    if(d.kind==='bin'&&isSauce(d.type)){
+      const burgers=S.items.filter(it=>it.kind==='burger');
+      if(burgers.length===1){applySauce(burgers[0],d.type);return;}
+      toast(burgers.length?'🧂 Drag the sauce onto a burger!':'🧂 Build a burger first!');return;
+    }
+    if(d.kind==='bin'&&isPowder(d.type)){
+      const pops=S.items.filter(it=>it.kind==='popcorn');
+      if(pops.length===1){applyPowder(pops[0],d.type);return;}
+      toast(pops.length?'✨ Drag the powder onto popcorn!':'🍿 Pop some popcorn first!');return;
+    }
+    if(d.kind==='slot'){restoreSlot();toast('👆 Drag it onto the counter!');return;}
+    if(d.kind==='bin'){toast(isCookable(d.type)?'👆 Drag it onto the Cook station!':'👆 Drag it onto the counter!');return;}
+    return;
+  }
+
+  // serve onto a customer
+  if(d.kind==='item'){
+    for(const c of [...S.customers]){ if(!c.dead&&inRect(x,y,c.el,4)){serve(d.item,c);return;} }
+  }
+
+  // trash
+  if(inRect(x,y,$('#trash'),6)){
+    if(d.kind==='item')removeItem(d.item);
+    sBad();toast('🗑️ Tossed into space');return;
+  }
+
+  // cook station (raw cookables)
+  const raw=(d.kind==='bin'&&isCookable(d.type));
+  if(raw){
+    for(let i=0;i<slotEls.length;i++){
+      if(!S.grill[i]&&inRect(x,y,slotEls[i],8)){S.grill[i]={out:COOK[d.type],placedAt:S.time};sTap();return;}
+    }
+    return;
+  }
+
+  // counter
+  if(inRect(x,y,counter)){
+    const r=counter.getBoundingClientRect();
+    const cx=x-r.left, cy=y-r.top;
+    if(d.kind==='bin'&&isSauce(d.type)){
+      const t=itemAt(cx,cy,null,'burger');
+      if(t)applySauce(t,d.type); else toast('🧂 Squirt it onto a burger!');
+      return;
+    }
+    if(d.kind==='bin'&&isPowder(d.type)){
+      const t=itemAt(cx,cy,null,'popcorn');
+      if(t)applyPowder(t,d.type); else toast('✨ Sprinkle it on popcorn!');
+      return;
+    }
+    if(d.kind==='bin'&&isDrink(d.type)){addProduct({kind:'drink',flavor:d.type},cx,cy);sPop();return;}
+    if(d.kind==='bin'){ // burger ingredient
+      const t=itemAt(cx,cy,null,'burger');
+      if(t){t.layers.push(d.type);if(t.layers.length>12){t.layers.length=12;toast('🍔 Whoa, too tall!');}S.active=t;sPop();renderItem(t);}
+      else addProduct({kind:'burger',layers:[d.type]},cx,cy);
+      return;
+    }
+    if(d.kind==='slot'){
+      const prod=d.product;
+      if(prod.kind==='burger'){
+        const t=itemAt(cx,cy,null,'burger');
+        if(t){t.layers.push('patty');if(t.layers.length>12){t.layers.length=12;toast('🍔 Whoa, too tall!');}S.active=t;sPop();renderItem(t);}
+        else addProduct(prod,cx,cy);
+      }else addProduct(prod,cx,cy);
+      sPop();return;
+    }
+    if(d.kind==='item'){
+      if(d.item.kind==='burger'){
+        const t=itemAt(cx,cy,d.item,'burger');
+        if(t){t.layers.push(...d.item.layers);if(t.layers.length>12)t.layers.length=12;removeItem(d.item);S.active=t;sPop();renderItem(t);}
+        else{moveItem(d.item,cx,cy);S.active=d.item;}
+      }else{moveItem(d.item,cx,cy);S.active=d.item;}
+      return;
+    }
+  }
+  restoreSlot();
+});
+
+/* ================= Serving ================= */
+function serve(item,c){
+  let idx=-1;
+  for(let i=0;i<c.order.length;i++){ if(!c.delivered[i]&&matchProduct(item,c.order[i])){idx=i;break;} }
+  if(idx>=0){
+    c.delivered[idx]=true;
+    removeItem(item);
+    renderOrderRow(c.el.querySelector('.order'),c,false);
+    if(S.selected===c.id)renderTicket();
+    const remaining=c.delivered.filter(d=>!d).length;
+    if(remaining===0){
+      const frac=Math.max(0,c.patience/c.maxPatience);
+      const tip=Math.floor(frac*6);
+      const pay=orderPay(c.order)+tip;
+      S.coins+=pay; S.dayEarned+=pay;
+      sGood(); toast(`✨ Order done! +💰${pay}${tip>=4?' (great tip!)':''}`);
+      removeCustomer(c,'😋'); renderHud();
+    }else{
+      sPop(); toast(`👍 Nice! ${remaining} more to go`);
+    }
+  }else{
+    sBad();
+    if(!S.easy)c.patience=Math.max(1,c.patience-c.maxPatience*.15);
+    c.el.classList.remove('angry');void c.el.offsetWidth;c.el.classList.add('angry');
+    toast(S.easy?'🤔 Not what they asked for — try again!':'❌ Not on their order!');
+  }
+}
+
+/* ================= Cook station ================= */
+function cookedProduct(out){
+  if(out==='patty')return {kind:'burger',layers:['patty']};
+  if(out==='fries')return {kind:'fries'};
+  return {kind:'popcorn',flavor:null};
+}
+slotEls.forEach(el=>{
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    if(S.phase!=='play'||drag)return;
+    const i=+el.dataset.i, g=S.grill[i];
+    if(!g){toast('🍳 Drag a raw patty, fries or kernels here!');return;}
+    const e2=S.time-g.placedAt;
+    if(e2<COOK_TIME){toast('⏳ Still cooking…');return;}
+    if(e2<COOK_TIME+READY_TIME||S.easy){
+      const state=S.grill[i]; S.grill[i]=null;
+      startDrag(e,{kind:'slot',fromSlot:i,slotState:state,product:cookedProduct(state.out)});
+    }else{ S.grill[i]=null; sBad(); toast('🔥 Burnt! Trashed.'); }
+  });
+});
+function cookSprite(out,phase,frac){
+  if(out==='patty'){
+    const d=document.createElement('div');
+    d.style.width='40px';d.style.height='40px';d.style.borderRadius='50%';d.style.position='relative';
+    if(phase==='cook'){d.className='tv sm';d.style.background=`radial-gradient(circle at 45% 40%, ${lerpColor('ef9aa2','7a4a2b',Math.min(1,frac))} 0 65%, ${lerpColor('d06b75','54311d',Math.min(1,frac))} 100%)`;}
+    else if(phase==='ready'){d.className='tv sm tv-patty';}
+    else{d.className='tv sm tv-patty burnt';}
+    d.style.width='40px';d.style.height='40px';
+    return d;
+  }
+  if(out==='fries')return friesEl(42, phase==='cook'?'raw':phase==='ready'?'done':'burnt');
+  // popcorn
+  if(phase==='cook')return kernelEl(42);
+  if(phase==='ready')return popcornEl(null,44);
+  const w=popcornEl(null,44); w.style.filter='brightness(.45) saturate(.5)'; return w;
+}
+function renderCooker(){
+  slotEls.forEach((el,i)=>{
+    const g=S.grill[i], tvp=el.querySelector('.tvp'), tag=el.querySelector('.tag'),
+          ring=el.querySelector('.ring'), prog=el.querySelector('.prog i');
+    el.classList.remove('ready','burnt');
+    if(!g){ring.style.display='';tvp.style.display='none';tvp.innerHTML='';tag.textContent='';prog.style.width='0';return;}
+    ring.style.display='none'; tvp.style.display='block';
+    const e=S.time-g.placedAt;
+    let phase = e<COOK_TIME?'cook' : (e<COOK_TIME+READY_TIME||S.easy)?'ready':'burnt';
+    tvp.innerHTML=''; tvp.appendChild(cookSprite(g.out,phase,e/COOK_TIME));
+    if(phase==='cook'){tag.textContent='COOKING';tag.style.color='#f97316';prog.style.width=Math.min(100,(e/COOK_TIME)*100)+'%';prog.style.background='#f97316';}
+    else if(phase==='ready'){el.classList.add('ready');tag.textContent='READY! DRAG';tag.style.color='#34d399';const left=S.easy?1:1-(e-COOK_TIME)/READY_TIME;prog.style.width=(left*100)+'%';prog.style.background='#34d399';}
+    else{el.classList.add('burnt');tag.textContent='BURNT';tag.style.color='#ef4444';prog.style.width='100%';prog.style.background='#ef4444';}
+  });
+}
+
+/* ================= HUD / overlay ================= */
+function renderHud(){
+  $('#dayN').textContent=S.day;
+  $('#coinsN').textContent=S.coins;
+  $('#livesP').textContent=S.easy?'🧸 Easy':(S.lives>0?'❤️'.repeat(S.lives):'💔');
+}
+$('#muteBtn').addEventListener('pointerdown',()=>{S.muted=!S.muted;$('#muteBtn').textContent=S.muted?'🔇':'🔊';});
+function showOverlay(html){$('#ovCard').innerHTML=html;$('#overlay').classList.remove('hidden');}
+function hideOverlay(){$('#overlay').classList.add('hidden');}
+function clearCounter(){S.items.forEach(it=>it.el.remove());S.items=[];S.active=null;updateHint();}
+
+function showMenu(){
+  S.phase='menu';
+  showOverlay(`
+    <h1>🍔 GALAXY BURGER</h1>
+    <p>Top-View Kitchen Edition</p>
+    <div class="how">
+      <div>👽 <span>Aliens beam in with an order — it can be a combo of a <b>burger, fries, popcorn &amp; a drink</b>. Tap a customer to pin their <b>ORDER ticket</b>.</span></div>
+      <div>🔥 <span><b>Cook</b> station: drag a raw <b>patty</b>, <b>fries</b> or <b>kernels</b> onto a burner. Grab it when it's <b style="color:#34d399">READY</b>, or park it on the counter where nothing burns.</span></div>
+      <div>🍔 <span>Use the <b>tabs</b> to switch trays. Stack burger parts on the counter; drop one item on another to combine.</span></div>
+      <div>🍿 <span><b>Popcorn</b> needs a flavor — sprinkle <b>Cheese, Sour Cream or BBQ</b> on it. 🥤 Drinks come ready: Soda, OJ, Water.</span></div>
+      <div>🚀 <span><b>Drag each finished item onto the customer</b> until their whole order is done!</span></div>
+    </div>
+    <p><a href="index.html">🍔 Prefer the classic side-view mode?</a></p>
+    ${S.best?`<p class="stat">Best run: <b>💰${S.best}</b></p>`:''}
+    <div class="btnRow">
+      <button class="bigbtn" id="playBtn">PLAY ▶</button>
+      <button class="bigbtn easy" id="easyBtn">🧸 TODDLER MODE</button>
+    </div>
+    <p class="hint">Toddler mode: nobody leaves, nothing burns, one simple order at a time 💛</p>`);
+  $('#playBtn').addEventListener('pointerdown',()=>startGame(false));
+  $('#easyBtn').addEventListener('pointerdown',()=>startGame(true));
+}
+function startGame(easy){
+  Object.assign(S,{phase:'play',day:1,coins:0,lives:3,grill:[null,null,null],
+    customers:[],selected:null,spawnT:.8,daySpawned:0,dayResolved:0,dayEarned:0,easy:!!easy});
+  document.body.classList.toggle('easy',!!easy);
+  $('#customers').innerHTML=''; clearCounter();
+  renderTicket();renderHud();hideOverlay();sBell();
+}
+function endDay(){
+  S.phase='day';sBell();
+  showOverlay(`
+    <h2>🌟 Day ${S.day} complete!</h2>
+    <p class="stat">Earned today: <b>💰${S.dayEarned}</b></p>
+    <p class="stat">Total: <b>💰${S.coins}</b></p>
+    <p>${S.day+1>=4?'Bigger combos &amp; three aliens at once now — prep ahead! 🥶':'It gets busier from here… cook in advance and park it.'}</p>
+    <button class="bigbtn" id="nextBtn">DAY ${S.day+1} ▶</button>`);
+  $('#nextBtn').addEventListener('pointerdown',()=>{
+    S.day++;S.daySpawned=0;S.dayResolved=0;S.dayEarned=0;S.spawnT=1;S.grill=[null,null,null];
+    clearCounter();renderTicket();renderHud();hideOverlay();S.phase='play';
+  });
+}
+function gameOver(){
+  S.phase='over';sBad();cancelDrag();
+  const isBest=S.coins>S.best;
+  if(isBest){S.best=S.coins;localStorage.setItem('gb_best',S.best);}
+  showOverlay(`
+    <h2>💀 GAME OVER</h2>
+    <p>Too many aliens left hangry…</p>
+    <p class="stat">Days survived: <b>${S.day}</b></p>
+    <p class="stat">Coins earned: <b>💰${S.coins}</b> ${isBest?'🏆 NEW BEST!':''}</p>
+    <p class="stat">Best: <b>💰${S.best}</b></p>
+    <button class="bigbtn" id="againBtn">PLAY AGAIN ▶</button>`);
+  $('#againBtn').addEventListener('pointerdown',()=>startGame(S.easy));
+}
+
+/* ================= Main loop ================= */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(S.phase==='play'){
+    S.time+=dt;
+    S.spawnT-=dt;
+    if(S.spawnT<=0&&S.customers.length<maxCust()&&S.daySpawned<dayTotal()){spawnCustomer();S.spawnT=2.8+Math.random()*4;}
+    for(const c of [...S.customers]){
+      if(!S.easy)c.patience-=dt;
+      const frac=Math.max(0,c.patience/c.maxPatience);
+      const bar=c.el.querySelector('.pbar i');
+      bar.style.width=(frac*100)+'%';
+      bar.style.background=frac>.5?'var(--green)':(frac>.25?'var(--gold)':'var(--red)');
+      if(!S.easy&&c.patience<=0){
+        S.lives--;sBad();renderHud();removeCustomer(c,'💢');toast('💔 A customer stormed off!');
+        if(S.lives<=0){gameOver();break;}
+      }
+    }
+    if(S.phase==='play'&&S.dayResolved>=dayTotal()&&S.customers.length===0)endDay();
+    renderCooker();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+buildTabs();renderBins();renderHud();showMenu();
+
+window.addEventListener('resize',()=>{S.items.forEach(it=>moveItem(it,it.x,it.y));});
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('dblclick',e=>e.preventDefault());
+</script>
+</body>
+</html>
